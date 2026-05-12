@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "outreach_replies_inbound_message_id_unique" ON "outreach_replies" USING btree ("inbound_message_id") WHERE inbound_message_id IS NOT NULL;

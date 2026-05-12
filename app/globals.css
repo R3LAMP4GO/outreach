@@ -1,0 +1,1295 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "react-phone-number-input/style.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================
+   Apple-Inspired Design System
+   Clean, modern, content-focused
+   ============================================ */
+
+:root {
+  /* Core Colors - Light Mode (Apple-inspired) */
+  --background: #ffffff;           /* White main content area */
+  --foreground: #1d1d1f;           /* Apple dark text */
+
+  --card: #ffffff;                 /* Pure white cards */
+  --card-foreground: #1d1d1f;
+
+  --popover: #ffffff;
+  --popover-foreground: #1d1d1f;
+
+  /* Primary - Apple Blue (use sparingly) */
+  --primary: #0071e3;
+  --primary-foreground: #ffffff;
+
+  /* Secondary - Subtle gray */
+  --secondary: #f5f5f7;
+  --secondary-foreground: #1d1d1f;
+
+  /* Muted - For subtle backgrounds */
+  --muted: #f5f5f7;
+  --muted-foreground: #86868b;     /* Apple secondary text */
+
+  /* Accent - Same as primary for consistency */
+  --accent: #f5f5f7;
+  --accent-foreground: #1d1d1f;
+
+  /* Destructive - Apple red */
+  --destructive: #ff3b30;
+  --destructive-foreground: #ffffff;
+
+  /* Borders & Inputs */
+  --border: #d2d2d7;               /* Apple subtle border */
+  --input: #ffffff;
+  --ring: #0071e3;
+
+  /* Chart colors */
+  --chart-1: #0071e3;
+  --chart-2: #34c759;              /* Apple green */
+  --chart-3: #ff9500;              /* Apple orange */
+  --chart-4: #af52de;              /* Apple purple */
+  --chart-5: #ff2d55;              /* Apple pink */
+
+  /* Sidebar - Light gray for light mode */
+  --sidebar: #f0f0f5;
+  --sidebar-foreground: #1d1d1f;
+  --sidebar-primary: #0071e3;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8e8ed;
+  --sidebar-accent-foreground: #1d1d1f;
+  --sidebar-border: #d2d2d7;
+  --sidebar-ring: #0071e3;
+
+  /* Typography */
+  --font-sans: "Roboto Flex", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-mono: "Fira Code", "SF Mono", Monaco, monospace;
+
+  /* Spacing & Radius */
+  --radius: 0.75rem;               /* 12px - Apple style rounded corners */
+  --spacing: 0.25rem;
+  --tracking-normal: 0em;
+
+  /* Shadows - Soft, natural shadows */
+  --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 6px 12px rgba(0, 0, 0, 0.08), 0 3px 6px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.06);
+  --shadow-xl: 0 15px 30px rgba(0, 0, 0, 0.10), 0 5px 10px rgba(0, 0, 0, 0.06);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.15);
+
+  /* Legacy Design Tokens (for homepage) */
+  --color-gray-50: #f5f5f7;
+  --color-gray-100: #e8e8ed;
+  --color-gray-300: #d2d2d7;
+  --color-gray-500: #86868b;
+  --color-gray-700: #6e6e73;
+  --color-gray-900: #1d1d1f;
+
+  --color-blue-300: #64acff;
+  --color-blue-400: #0077ed;
+  --color-blue-500: #0071e3;
+  --color-blue-600: #0066cc;
+}
+
+/* Dark Mode - Apple-inspired */
+.dark {
+  --background: #000000;           /* True black (Apple style) */
+  --foreground: #f5f5f7;
+
+  --card: #1c1c1e;                 /* Apple dark card */
+  --card-foreground: #f5f5f7;
+
+  --popover: #1c1c1e;
+  --popover-foreground: #f5f5f7;
+
+  --primary: #0a84ff;              /* Apple blue for dark mode */
+  --primary-foreground: #ffffff;
+
+  --secondary: #2c2c2e;
+  --secondary-foreground: #f5f5f7;
+
+  --muted: #2c2c2e;
+  --muted-foreground: #98989d;
+
+  --accent: #2c2c2e;
+  --accent-foreground: #f5f5f7;
+
+  --destructive: #ff453a;          /* Apple red for dark mode */
+  --destructive-foreground: #ffffff;
+
+  --border: #38383a;
+  --input: #1c1c1e;
+  --ring: #0a84ff;
+
+  --chart-1: #0a84ff;
+  --chart-2: #30d158;
+  --chart-3: #ff9f0a;
+  --chart-4: #bf5af2;
+  --chart-5: #ff375f;
+
+  --sidebar: #1c1c1e;
+  --sidebar-foreground: #f5f5f7;
+  --sidebar-primary: #0a84ff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #2c2c2e;
+  --sidebar-accent-foreground: #f5f5f7;
+  --sidebar-border: #38383a;
+  --sidebar-ring: #0a84ff;
+
+  /* Dark mode shadows - more subtle */
+  --shadow-2xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 6px 12px rgba(0, 0, 0, 0.4), 0 3px 6px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.45), 0 4px 8px rgba(0, 0, 0, 0.35);
+  --shadow-xl: 0 15px 30px rgba(0, 0, 0, 0.5), 0 5px 10px rgba(0, 0, 0, 0.4);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.6);
+}
+
+@theme inline {
+  /* Color mappings to Tailwind */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Typography */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  /* Radius */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-pill: 50px;
+  --radius-circle: 100px;
+  --radius-card: 16px;
+  --radius-nav: 27px;
+
+  /* Shadows */
+  --shadow-2xs: var(--shadow-2xs);
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow: var(--shadow);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  /* Special shadows */
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.03);
+  --shadow-elevation: 0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  /* Legacy colors for homepage */
+  --color-gray-50: var(--color-gray-50);
+  --color-gray-100: var(--color-gray-100);
+  --color-gray-300: var(--color-gray-300);
+  --color-gray-500: var(--color-gray-500);
+  --color-gray-700: var(--color-gray-700);
+  --color-gray-900: var(--color-gray-900);
+  --color-blue-300: var(--color-blue-300);
+  --color-blue-400: var(--color-blue-400);
+  --color-blue-500: var(--color-blue-500);
+  --color-blue-600: var(--color-blue-600);
+
+  /* Spacing & Tracking */
+  --spacing: var(--spacing);
+  --tracking-normal: var(--tracking-normal);
+  --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
+  --tracking-tight: calc(var(--tracking-normal) - 0.025em);
+  --tracking-wide: calc(var(--tracking-normal) + 0.025em);
+  --tracking-wider: calc(var(--tracking-normal) + 0.05em);
+  --tracking-widest: calc(var(--tracking-normal) + 0.1em);
+}
+
+body {
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Mobile Navigation Animations */
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-in-from-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-slide-in-left {
+  animation: slide-in-left 0.3s ease-out;
+  will-change: transform, opacity;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+  will-change: transform, opacity;
+}
+
+.animate-slide-in-from-right {
+  animation: slide-in-from-right 0.3s ease-out;
+  will-change: transform;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  will-change: opacity;
+}
+
+.animate-fade-in-delay {
+  animation: fade-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.2s forwards;
+  opacity: 0;
+  will-change: opacity;
+}
+
+.animate-slide-up {
+  animation: fade-in-up 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.4s forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Wave Animations - Visible flowing wave effect */
+
+@keyframes wave-1 {
+  0%, 100% {
+    transform: translateX(0) translateY(0) scaleY(1);
+  }
+  25% {
+    transform: translateX(-5%) translateY(-8px) scaleY(1.05);
+  }
+  50% {
+    transform: translateX(-10%) translateY(-15px) scaleY(1.1);
+  }
+  75% {
+    transform: translateX(-15%) translateY(-8px) scaleY(1.05);
+  }
+}
+
+@keyframes wave-2 {
+  0%, 100% {
+    transform: translateX(0) translateY(0) scaleY(1);
+  }
+  25% {
+    transform: translateX(5%) translateY(-12px) scaleY(1.08);
+  }
+  50% {
+    transform: translateX(10%) translateY(-20px) scaleY(1.12);
+  }
+  75% {
+    transform: translateX(15%) translateY(-12px) scaleY(1.08);
+  }
+}
+
+@keyframes wave-3 {
+  0%, 100% {
+    transform: translateX(0) translateY(0) scaleY(1);
+  }
+  33% {
+    transform: translateX(-8%) translateY(-10px) scaleY(1.06);
+  }
+  66% {
+    transform: translateX(-16%) translateY(-18px) scaleY(1.1);
+  }
+}
+
+@keyframes wave-4 {
+  0%, 100% {
+    transform: translateX(0) translateY(0) scaleY(1);
+  }
+  33% {
+    transform: translateX(8%) translateY(10px) scaleY(1.05);
+  }
+  66% {
+    transform: translateX(16%) translateY(18px) scaleY(1.08);
+  }
+}
+
+@keyframes wave-5 {
+  0%, 100% {
+    transform: translateX(0) translateY(0) scale(1);
+  }
+  25% {
+    transform: translateX(-6%) translateY(-20px) scale(1.03);
+  }
+  50% {
+    transform: translateX(-12%) translateY(-35px) scale(1.05);
+  }
+  75% {
+    transform: translateX(-18%) translateY(-20px) scale(1.03);
+  }
+}
+
+@keyframes wave-blob-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(80px, -60px) scale(1.1);
+  }
+  50% {
+    transform: translate(150px, -100px) scale(1.15);
+  }
+  75% {
+    transform: translate(80px, -60px) scale(1.1);
+  }
+}
+
+@keyframes wave-blob-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(-60px, 40px) scale(1.08);
+  }
+  50% {
+    transform: translate(-120px, 80px) scale(1.12);
+  }
+  75% {
+    transform: translate(-60px, 40px) scale(1.08);
+  }
+}
+
+/* Apply wave animations with GPU acceleration */
+.animate-wave-1 {
+  animation: wave-1 20s ease-in-out infinite;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.animate-wave-2 {
+  animation: wave-2 25s ease-in-out infinite;
+  animation-delay: -3s;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.animate-wave-3 {
+  animation: wave-3 30s ease-in-out infinite;
+  animation-delay: -7s;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.animate-wave-4 {
+  animation: wave-4 22s ease-in-out infinite;
+  animation-delay: -5s;
+  will-change: transform;
+  transform-origin: center bottom;
+}
+
+.animate-wave-5 {
+  animation: wave-5 28s ease-in-out infinite;
+  animation-delay: -10s;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.animate-wave-blob-1 {
+  animation: wave-blob-1 35s ease-in-out infinite;
+  animation-delay: -8s;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.animate-wave-blob-2 {
+  animation: wave-blob-2 32s ease-in-out infinite;
+  animation-delay: -12s;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+/* Infinite Scroll Animation */
+@keyframes infinite-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-infinite-scroll {
+  animation: infinite-scroll linear infinite;
+  will-change: transform;
+}
+
+/* Bidirectional Scroll Animations for Card 1 */
+@keyframes scroll-rtl {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes scroll-ltr {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0%);
+  }
+}
+
+.animate-scroll-rtl {
+  animation: scroll-rtl 15s linear infinite;
+  will-change: transform;
+}
+
+.animate-scroll-ltr {
+  animation: scroll-ltr 15s linear infinite;
+  will-change: transform;
+}
+
+/* Card 1 Gradient Slide Animation */
+@keyframes gradient-slide {
+  0%, 100% {
+    width: 70%;
+  }
+  50% {
+    width: 30%;
+  }
+}
+
+.animate-gradient-slide {
+  animation: gradient-slide 8s ease-in-out infinite;
+  will-change: width;
+}
+
+/* Progress Slide Animation */
+@keyframes progress-slide {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(calc(100vw - 100px));
+  }
+}
+
+.animate-progress-slide {
+  animation: progress-slide 8s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Progress Overlay Animation */
+@keyframes progress-overlay {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(calc(100vw - 100px));
+  }
+}
+
+.animate-progress-overlay {
+  animation: progress-overlay 8s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Card 2 Animations - Code Slide & Rotate */
+@keyframes code-slide {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-120px);
+  }
+}
+
+.animate-code-slide {
+  animation: code-slide 10s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes rotate-icon {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+.animate-rotate-icon {
+  animation: rotate-icon 20s linear infinite;
+  will-change: transform;
+}
+
+/* Card 3 Animations - Chart Bars (Width Growth) */
+@keyframes chart-bar-1 {
+  0%, 100% {
+    width: 91.666667%; /* w-11/12 */
+  }
+  50% {
+    width: 95%;
+  }
+}
+
+@keyframes chart-bar-2 {
+  0%, 100% {
+    width: 58.333333%; /* w-7/12 */
+  }
+  50% {
+    width: 65%;
+  }
+}
+
+@keyframes chart-bar-3 {
+  0%, 100% {
+    width: 100%;
+  }
+  50% {
+    width: 92%;
+  }
+}
+
+.animate-chart-bar-1 {
+  animation: chart-bar-1 3s ease-in-out infinite;
+  will-change: width;
+}
+
+.animate-chart-bar-2 {
+  animation: chart-bar-2 4s ease-in-out infinite;
+  animation-delay: -1.5s;
+  will-change: width;
+}
+
+.animate-chart-bar-3 {
+  animation: chart-bar-3 5s ease-in-out infinite;
+  animation-delay: -2.5s;
+  will-change: width;
+}
+
+/* Service Card Animations - Chatbot Typing & Progress */
+@keyframes typing-line {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scaleX(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1.1);
+  }
+}
+
+@keyframes progress-bar {
+  0%, 100% {
+    width: 30%;
+  }
+  50% {
+    width: 70%;
+  }
+}
+
+@keyframes progress-flash {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-progress-flash {
+  animation: progress-flash 1s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.animate-typing-1 {
+  animation: typing-line 2s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform-origin: left center;
+}
+
+.animate-typing-2 {
+  animation: typing-line 2s ease-in-out infinite;
+  animation-delay: -0.5s;
+  will-change: transform, opacity;
+  transform-origin: left center;
+}
+
+.animate-typing-3 {
+  animation: typing-line 2s ease-in-out infinite;
+  animation-delay: -1s;
+  will-change: transform, opacity;
+  transform-origin: left center;
+}
+
+.animate-typing-4 {
+  animation: typing-line 2s ease-in-out infinite;
+  animation-delay: -1.5s;
+  will-change: transform, opacity;
+  transform-origin: left center;
+}
+
+.animate-progress {
+  animation: progress-bar 3s ease-in-out infinite;
+  will-change: width;
+}
+
+/* Content Generation Animations - Image Fade In/Out */
+@keyframes content-fade {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@keyframes content-loading {
+  0%, 100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.animate-content-fade-1 {
+  animation: content-fade 4s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.animate-content-fade-2 {
+  animation: content-fade 4s ease-in-out infinite;
+  animation-delay: -2s;
+  will-change: opacity;
+}
+
+.animate-content-loading-1 {
+  animation: content-loading 3s ease-in-out infinite;
+  will-change: opacity;
+}
+
+.animate-content-loading-2 {
+  animation: content-loading 3s ease-in-out infinite;
+  animation-delay: -1.5s;
+  will-change: opacity;
+}
+
+/* Slow Full-Width Progress Sweep Animation */
+@keyframes progress-sweep {
+  0% {
+    transform: scaleX(0);
+  }
+  50% {
+    transform: scaleX(1);
+  }
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+.animate-progress-sweep {
+  animation: progress-sweep 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Image Wave Animation - Continuous Up and Down Movement */
+@keyframes image-wave {
+  0%, 100% {
+    transform: translateY(66px);
+  }
+  50% {
+    transform: translateY(-66px);
+  }
+}
+
+.animate-image-wave-1 {
+  animation: image-wave 12s linear infinite;
+  animation-delay: 1.6s;
+  will-change: transform;
+}
+
+.animate-image-wave-2 {
+  animation: image-wave 12s linear infinite;
+  animation-delay: 1s;
+  will-change: transform;
+}
+
+.animate-image-wave-3 {
+  animation: image-wave 12s linear infinite;
+  animation-delay: 4.8s;
+  will-change: transform;
+}
+
+.animate-image-wave-4 {
+  animation: image-wave 12s linear infinite;
+  animation-delay: 7.2s;
+  will-change: transform;
+}
+
+/* Business Consulting Bar Animations - Vertical Movement Only */
+@keyframes bar-move-1 {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes bar-move-2 {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes bar-move-3 {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-25px);
+  }
+}
+
+.animate-bar-move-1 {
+  animation: bar-move-1 3s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-bar-move-2 {
+  animation: bar-move-2 3.5s ease-in-out infinite;
+  animation-delay: -0.5s;
+  will-change: transform;
+}
+
+.animate-bar-move-3 {
+  animation: bar-move-3 4s ease-in-out infinite;
+  animation-delay: -1s;
+  will-change: transform;
+}
+
+/* Workflow Automation Animations - Sprocket Spin & Icon Flow */
+@keyframes sprocket-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes sprocket-spin-ccw {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes icons-flow-rtl {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes icons-flow-ltr {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+.animate-sprocket-spin {
+  animation: sprocket-spin 6s linear infinite;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.animate-sprocket-spin-ccw {
+  animation: sprocket-spin-ccw 6s linear infinite;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.animate-icons-flow-rtl {
+  animation: icons-flow-rtl 10s linear infinite;
+  will-change: transform;
+}
+
+.animate-icons-flow-ltr {
+  animation: icons-flow-ltr 10s linear infinite;
+  will-change: transform;
+}
+
+/* Floating Animation for Gradient Buttons */
+@keyframes float-gentle {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float-gentle {
+  animation: float-gentle 3s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Wave Text Animation */
+@keyframes text-wave {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-text-wave {
+  display: inline-block;
+  animation: text-wave 2s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Accordion Animations */
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+.animate-accordion-down {
+  animation: accordion-down 0.2s ease-out;
+  will-change: height;
+}
+
+.animate-accordion-up {
+  animation: accordion-up 0.2s ease-out;
+  will-change: height;
+}
+
+/* Newsletter Artifact Slide-in Animation */
+.artifact-slide-in {
+  animation: slide-in-from-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Phone Input Custom Styles - Complete Override */
+.phone-input-custom {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* Country selector wrapper */
+.phone-input-custom .PhoneInputCountry {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 2px solid white;
+  background: linear-gradient(180deg, rgb(245, 245, 245) 0%, rgb(255, 255, 255) 100%);
+  box-shadow: 0 0.602187px 1.80656px -0.916667px rgba(0,0,0,0.05), 0 2.28853px 6.8656px -1.83333px rgba(0,0,0,0.05), 0 10px 30px -2.75px rgba(0,0,0,0.05);
+  transition: all 0.2s;
+}
+
+.phone-input-custom .PhoneInputCountry:hover {
+  border-color: var(--color-blue-400);
+}
+
+/* The actual select dropdown */
+.phone-input-custom .PhoneInputCountrySelect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* Country flag icon */
+.phone-input-custom .PhoneInputCountryIcon {
+  width: 1.5em;
+  height: 1em;
+  margin-right: 0.5rem;
+}
+
+.phone-input-custom .PhoneInputCountryIcon--border {
+  background-color: rgba(0,0,0,0.1);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.5);
+}
+
+.phone-input-custom .PhoneInputCountryIconImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Dropdown arrow */
+.phone-input-custom .PhoneInputCountrySelectArrow {
+  display: block;
+  width: 0.3em;
+  height: 0.3em;
+  margin-left: 0.35em;
+  border-style: solid;
+  border-color: var(--color-gray-700);
+  border-top-width: 0;
+  border-bottom-width: 1px;
+  border-left-width: 0;
+  border-right-width: 1px;
+  transform: rotate(45deg);
+  opacity: 0.5;
+}
+
+/* Phone number input */
+.phone-input-custom .PhoneInputInput {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 2px solid white;
+  font-family: var(--font-sans);
+  font-weight: 300;
+  color: var(--color-gray-900);
+  background: linear-gradient(180deg, rgb(245, 245, 245) 0%, rgb(255, 255, 255) 100%);
+  outline: none;
+  transition: all 0.2s;
+  box-shadow: 0 0.602187px 1.80656px -0.916667px rgba(0,0,0,0.05), 0 2.28853px 6.8656px -1.83333px rgba(0,0,0,0.05), 0 10px 30px -2.75px rgba(0,0,0,0.05);
+}
+
+.phone-input-custom .PhoneInputInput:focus {
+  border-color: white;
+  box-shadow: 0 0 0 2px rgba(48, 141, 255, 0.2);
+}
+
+.phone-input-custom .PhoneInputInput::placeholder {
+  color: var(--color-gray-500);
+  opacity: 0.6;
+}
+
+/* Error state */
+.phone-input-custom.phone-input-error .PhoneInputInput {
+  border-color: rgb(239, 68, 68);
+}
+
+.phone-input-custom.phone-input-error .PhoneInputCountry {
+  border-color: rgb(239, 68, 68);
+}
+
+/* ----------------------------------------------------------------------
+   Email thread body — quoted-reply thread lines (Notion / Gmail style)
+
+   Inbound replies from Gmail/Outlook/etc. wrap the previous message in
+   <blockquote>. We render that here with a vertical "thread line" on the
+   left, and nested blockquotes naturally inherit so deeper quote levels
+   visually indent further (smaller and smaller, like an email chain).
+
+   We override Tailwind Typography's default fancy blockquote styling
+   (italics, large quote marks) since this is an email quote, not a pull-
+   quote.
+   ---------------------------------------------------------------------- */
+.email-thread-body blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  color: var(--muted-foreground);
+  font-style: normal;
+  quotes: none;
+}
+.email-thread-body blockquote::before,
+.email-thread-body blockquote::after {
+  content: none;
+}
+.email-thread-body blockquote p {
+  margin: 0.4rem 0;
+}
+
+/* Base layer */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    letter-spacing: var(--tracking-normal);
+  }
+}
+
+/* Sonner Toast Positioning - Center Aligned */
+[data-sonner-toaster] {
+  position: fixed !important;
+  left: 50vw !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  max-width: fit-content !important;
+  z-index: 9999 !important;
+}
+
+[data-sonner-toaster][data-x-position='center'] {
+  position: fixed !important;
+  left: 50vw !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+}
+
+[data-sonner-toast] {
+  margin: 0 auto !important;
+  width: auto !important;
+  max-width: fit-content !important;
+  min-width: 200px;
+}
+
+/* TipTap Rich Text Editor Styles */
+.ProseMirror {
+  outline: none;
+  min-height: 200px;
+}
+
+.ProseMirror p {
+  margin: 0.5em 0;
+}
+
+.ProseMirror p:first-child {
+  margin-top: 0;
+}
+
+.ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.ProseMirror li {
+  margin: 0.25em 0;
+}
+
+.ProseMirror a {
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 0.5em 0;
+}
+
+.ProseMirror blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: var(--muted-foreground);
+}
+
+.ProseMirror code {
+  background: var(--muted);
+  padding: 0.125em 0.25em;
+  border-radius: 0.25em;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.ProseMirror pre {
+  background: var(--muted);
+  padding: 0.75em 1em;
+  border-radius: 0.5em;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+}
+
+.ProseMirror h1 {
+  font-size: 1.5em;
+  font-weight: 700;
+  margin: 0.75em 0 0.5em;
+}
+
+.ProseMirror h2 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin: 0.75em 0 0.5em;
+}
+
+.ProseMirror h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 0.75em 0 0.5em;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  height: 0;
+}
+
+/* ========================================
+   Framer Motion Scroll Animation Styles
+   ======================================== */
+
+/* GPU acceleration for smooth animations */
+.scroll-animated {
+  will-change: transform, opacity, filter;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* 3D card stacking effect */
+.material-stack {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+
+/* Bidirectional animations (animate on scroll up AND down) */
+.bidirectional-animate {
+  will-change: transform, opacity;
+  contain: layout;
+}
+
+/* Hero text animation container */
+.hero-text-container {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Hero text word animation */
+.hero-text-word {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Accessibility: Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-animated,
+  .material-stack,
+  .bidirectional-animate,
+  .hero-text-container,
+  .hero-text-word {
+    will-change: auto;
+    transform: none !important;
+    animation: none !important;
+    transition: opacity 0.3s ease !important;
+  }
+}

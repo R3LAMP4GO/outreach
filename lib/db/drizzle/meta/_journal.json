@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1774852451449,
+      "tag": "0000_icy_night_nurse",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777023974206,
+      "tag": "0001_slim_beyonder",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777523455082,
+      "tag": "0002_lean_jasper_sitwell",
+      "breakpoints": true
+    }
+  ]
+}

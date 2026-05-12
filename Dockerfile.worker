@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1
+# ─────────────────────────────────────────────────────────────────────────────
+# Worker (pg-boss job processor)
+#
+# Single-stage: bun installs deps and runs scripts/worker.ts directly.
+# No build step needed — bun runs TypeScript natively.
+# ─────────────────────────────────────────────────────────────────────────────
+
+FROM oven/bun:1.3.13
+WORKDIR /app
+
+# Install deps first for layer caching
+COPY package.json bun.lock ./
+RUN bun install
+
+# Copy source
+COPY . .
+
+# `server-only` is designed to throw at runtime unless replaced by Next.js'
+# bundler. The worker runs outside Next.js, so neutralise it to a no-op so
+# server-only modules (lib/db, lib/storage, etc.) can be imported safely.
+RUN echo 'module.exports = {};' > node_modules/server-only/index.js
+
+ENV NODE_ENV=production
+
+CMD ["bun", "scripts/worker.ts"]

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "include": ["files", "dependencies", "unlisted", "unresolved"],
+  "entry": ["scripts/**/*.{ts,mjs,js}"],
+  "ignoreDependencies": ["tsx", "playwright"],
+  "ignoreExportsUsedInFile": {
+    "interface": true,
+    "type": true
+  }
+}

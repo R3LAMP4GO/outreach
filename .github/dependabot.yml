@@ -1,0 +1,28 @@
+# Dependabot config — auto-PRs to keep deps + GitHub Actions up to date.
+# Free for private repos. Disable individual ecosystems below if noisy.
+#
+# Docs: https://docs.github.com/en/code-security/dependabot
+
+version: 2
+updates:
+  # npm — Bun reads package.json, so the npm ecosystem covers it.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions versions in .github/workflows/*.yml
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Dockerfile base images
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"

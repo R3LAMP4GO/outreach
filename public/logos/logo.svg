@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 80" width="420" height="80">
+  <!-- Pill outline -->
+  <rect x="1" y="1" width="418" height="78" rx="39" ry="39" fill="none" stroke="#60A5FA" stroke-width="1.5"/>
+  <!-- Text: Coastal Programs in Playfair Display style serif -->
+  <text x="210" y="49" text-anchor="middle" font-family="'Playfair Display', 'Georgia', serif" font-size="30" font-weight="600" fill="#1D1D1F" letter-spacing="-0.02em">Coastal Programs</text>
+</svg>
