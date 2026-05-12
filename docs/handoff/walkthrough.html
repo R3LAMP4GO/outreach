@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Platform Walkthrough</title>
+  <style>
+    /* Override the theme's branded page header so this doc is generic. */
+    @page {
+      @top-left { content: "PLATFORM WALKTHROUGH"; }
+      @top-right { content: "HANDOVER"; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       COVER
+       ============================================================ -->
+  <div class="cover-page">
+    <img src="public/logos/logo.png" alt="Logo" class="cover-logo">
+    <h1>PLATFORM WALKTHROUGH</h1>
+    <p class="cover-subtitle">How this outreach + CRM platform works, and what you need to set up</p>
+    <hr class="cover-rule">
+    <p class="cover-meta">Handover guide for the team</p>
+    <p class="cover-meta">May 2026</p>
+  </div>
+
+  <!-- ============================================================
+       TABLE OF CONTENTS
+       ============================================================ -->
+  <section>
+    <h1>Contents</h1>
+    <div class="toc">
+      <div class="toc-entry"><span class="toc-number">01</span><span class="toc-title">What this is</span></div>
+      <div class="toc-entry"><span class="toc-number">02</span><span class="toc-title">Tech stack</span></div>
+      <div class="toc-entry"><span class="toc-number">03</span><span class="toc-title">The CRM pipeline</span></div>
+      <div class="toc-entry"><span class="toc-number">04</span><span class="toc-title">Outreach automation</span></div>
+      <div class="toc-entry"><span class="toc-number">05</span><span class="toc-title">The AI inbox</span></div>
+      <div class="toc-entry"><span class="toc-number">06</span><span class="toc-title">Cal.com to CRM sync</span></div>
+      <div class="toc-entry"><span class="toc-number">07</span><span class="toc-title">Webhooks and integrations</span></div>
+      <div class="toc-entry"><span class="toc-number">08</span><span class="toc-title">What you need to configure</span></div>
+      <div class="toc-entry"><span class="toc-number">09</span><span class="toc-title">Deploying on Railway</span></div>
+      <div class="toc-entry"><span class="toc-number">10</span><span class="toc-title">First-run checklist</span></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       01 — WHAT THIS IS
+       ============================================================ -->
+  <div class="section-divider">
+    <span class="section-number">01</span>
+    <h2>What this is</h2>
+  </div>
+
+  <section>
+    <h1>The short version</h1>
+    <p>This is a self-hosted sales platform. It runs cold-email campaigns, watches the replies, classifies them with AI, and pushes the results into a CRM pipeline. When someone books a call through Cal.com, that booking automatically advances the deal to the next stage. The whole thing lives behind a single admin login, deploys to Railway as two services (web + worker), and uses Postgres for everything including the background job queue.</p>
+    <div class="spacer"></div>
+    <blockquote class="quote-block">
+      <p>You don't run separate tools for outreach, inbox, CRM, and booking. They are one system, sharing one database, with one source of truth per contact.</p>
+    </blockquote>
+  </section>
+
+  <section>
+    <h1>What you get out of the box</h1>
+    <div class="card-grid">
+      <div class="card">
+        <h3>Outreach automation</h3>
+        <p>Three-step email sequences, per-sender accounts, AI-personalised bodies, business-hours scheduling, deliverability throttling.</p>
+      </div>
+      <div class="card">
+        <h3>AI inbox</h3>
+        <p>Inbound replies are scored for sentiment and intent. The AI drafts a suggested reply in your voice. You hit send or edit.</p>
+      </div>
+      <div class="card">
+        <h3>CRM pipeline</h3>
+        <p>Contacts, deals, and stages (Lead, Contacted, Meeting Booked, Proposal, Won, Lost). Status hierarchy stops accidental downgrades.</p>
+      </div>
+      <div class="card">
+        <h3>Webhook plumbing</h3>
+        <p>Cal.com bookings advance deals. Resend events update send/open/reply state. Inbound emails route to the right contact by Message-ID.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       02 — TECH STACK
+       ============================================================ -->
+  <div class="section-divider">
+    <span class="section-number">02</span>
+    <h2>Tech stack</h2>
+  </div>
+
+  <section>
+    <h1>What it's built on</h1>
+    <p>You don't need to know all of this to run the platform, but it helps when something breaks.</p>
+    <div class="table-container">
+      <table class="branded-table">
+        <thead>
+          <tr><th style="width: 130pt">Layer</th><th style="width: 130pt">Tool</th><th>What it does here</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Runtime</td><td>Bun</td><td>Faster than Node for installs and scripts. The dev server and the worker both run on Bun.</td></tr>
+          <tr><td>Framework</td><td>Next.js 16 (App Router)</td><td>The admin UI and all API routes. React 19 on the front end.</td></tr>
+          <tr><td>Database</td><td>PostgreSQL</td><td>Single Postgres instance holds CRM data, outreach state, jobs queue, and auth sessions.</td></tr>
+          <tr><td>ORM</td><td>Drizzle</td><td>Typed SQL builder. Schema in <code>lib/db/schema.ts</code>, migrations in <code>lib/db/drizzle/</code>.</td></tr>
+          <tr><td>Job queue</td><td>pg-boss</td><td>Background jobs (sending emails, processing replies) live in a <code>pgboss</code> schema in the same Postgres.</td></tr>
+          <tr><td>Email send</td><td>Resend</td><td>Sends outbound mail, posts webhooks back when mail is delivered, opened, clicked, bounced, or replied to.</td></tr>
+          <tr><td>AI</td><td>Anthropic Claude</td><td>Classifies inbound replies (sentiment, intent) and drafts suggested responses.</td></tr>
+          <tr><td>Auth</td><td>NextAuth v5</td><td>Email + password with TOTP two-factor. Admin-only, the public site redirects to <code>/admin</code>.</td></tr>
+          <tr><td>Storage</td><td>S3-compatible</td><td>MinIO for local dev, Railway Bucket (Tigris) for production. Holds avatars and logos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h1>The two-service shape</h1>
+    <p>One repo, two long-running processes on Railway:</p>
+    <div class="card-grid">
+      <div class="card">
+        <h3>website</h3>
+        <p>The Next.js app. Serves the admin UI, the API routes, and the webhook endpoints. Built from <code>Dockerfile</code>.</p>
+      </div>
+      <div class="card">
+        <h3>worker</h3>
+        <p>Bun process polling pg-boss. Sends scheduled outreach emails, processes inbound replies, runs cron jobs. Built from <code>Dockerfile.worker</code>.</p>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="callout callout-info">
+      <strong>Why two services:</strong> the web server can't run long jobs without blocking requests. The worker is the same code with a different start command. They share the database; the web side writes job rows, the worker reads and runs them.
+    </div>
+  </section>
+
+  <!-- ============================================================
+       03 — CRM PIPELINE
+       ============================================================ -->
+  <div class="section-divider">
+    <span class="section-number">03</span>
+    <h2>The CRM pipeline</h2>
+  </div>
+
+  <section>
+    <h1>Contacts and deals</h1>
+    <p>Every person you talk to is a <strong>contact</strong>. Every active opportunity attached to a contact is a <strong>deal</strong>. One contact can have many deals over time (think "first project", "follow-up project"). At any moment, a contact has a <strong>status</strong> and each of their deals has a <strong>stage</strong>.</p>
+  </section>
+
+  <section>
+    <h1>The pipeline stages</h1>
+    <div class="table-container">
+      <table class="branded-table">
+        <thead>
+          <tr><th style="width: 130pt">Stage</th><th>How a deal lands here</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Lead</td><td>Contact form submitted, or contact imported into an outreach campaign.</td></tr>
+          <tr><td>Contacted</td><td>You sent them an email and they replied positively (AI flagged it).</td></tr>
+          <tr><td>Meeting Booked</td><td>They booked a call through Cal.com. <strong>Only the Cal.com webhook can advance to this stage</strong>, no AI shortcut.</td></tr>
+          <tr><td>Proposal Sent</td><td>Moved by you, manually, after the meeting.</td></tr>
+          <tr><td>Won</td><td>Closed deal. Manual.</td></tr>
+          <tr><td>Lost</td><td>Dead deal. Manual.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h1>Status hierarchy (never downgrades)</h1>
+    <p>A contact's status follows a strict ladder:</p>
+    <div class="table-container">
+      <table class="branded-table borderless">
+        <thead><tr><th>Order</th><th>Status</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>subscriber</td><td>Signed up for the newsletter, no sales contact yet.</td></tr>
+          <tr><td>2</td><td>lead</td><td>You started an outreach conversation, or they filled the contact form.</td></tr>
+          <tr><td>3</td><td>qualified</td><td>They booked a call through Cal.com.</td></tr>
+          <tr><td>4</td><td>customer</td><td>Closed deal.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout callout-info">
+      <strong>Why this matters:</strong> if a customer replies to a newsletter, the system won't accidentally write them back to "subscriber". The protection lives in the database function <code>upsert_contact_with_hierarchy_protection</code>.
+    </div>
+  </section>
+
+  <!-- ============================================================
+       04 — OUTREACH AUTOMATION
+       ============================================================ -->
+  <div class="section-divider">
+    <span class="section-number">04</span>
+    <h2>Outreach automation</h2>
+  </div>
+
+  <section>
+    <h1>How a campaign is structured</h1>
+    <p>A campaign is a bucket of contacts, a sender account, and three email steps. Each step has a delay (e.g. "send email 2 three business days after email 1"), a subject template, and a body template. The body template wraps the AI-personalised paragraph for that contact.</p>
+    <div class="spacer"></div>
+    <p>You write the template once at the campaign level. The contact-specific content (their first name, their company, the AI-generated opener) gets stitched in at send time.</p>
+  </section>
+
+  <section>
+    <h1>Tokens you can use in templates</h1>
+    <div class="table-container">
+      <table class="branded-table">
+        <thead><tr><th style="width: 170pt">Token</th><th>Resolves to</th></tr></thead>
+        <tbody>
+          <tr><td><code>{{email_1_body}}</code></td><td>The AI-personalised body paragraph for step 1, written per contact.</td></tr>
+          <tr><td><code>{{email_2_body}}</code> / <code>{{email_3_body}}</code></td><td>Same idea, for steps 2 and 3.</td></tr>
+          <tr><td><code>{{signature}}</code></td><td>The sender account's signature (HTML or plain text).</td></tr>
+          <tr><td><code>{{unsubscribe_link}}</code></td><td>System-rendered styled unsubscribe footer. Only appears if the token is present, so it's WYSIWYG.</td></tr>
+          <tr><td><code>{{first_name}}</code></td><td>Contact's first name.</td></tr>
+          <tr><td><code>{{unsubscribe_url}}</code></td><td>Raw URL form, for hand-rolled footers.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h1>Sender accounts</h1>
+    <p>Each campaign sends from a <strong>sender account</strong>. A sender account is a real mailbox (e.g. <code>jake@email.example.com</code>) registered with Resend, with its own signature, daily send cap, and warmup state. Campaigns can rotate across multiple senders to spread volume.</p>
+    <div class="callout callout-info">
+      <strong>Reply-To rule (locked):</strong> outgoing outreach emails always set <code>Reply-To</code> to the sender's plain mailbox, never a UUID-suffixed address. Recipients see a real human address when they hit reply. Replies are still matched to the right contact via the <code>Message-ID</code> header in the inbound webhook.
+    </div>
+  </section>
+
+  <section>
+    <h1>Scheduling and business hours</h1>
+    <p>The worker calculates each email's send time using:</p>
+    <ul>
+      <li>The step's delay in business days (configured per campaign).</li>
+      <li>The campaign's business-hours window (e.g. 09:00 to 17:00 Australia/Sydney).</li>
+      <li>The sender account's daily cap, so a single mailbox doesn't blast 500 in one hour.</li>
+    </ul>
+    <p>If a send would land outside business hours, it gets pushed to the next open window. Jobs sit in pg-boss until their scheduled time, then the worker picks them up.</p>
+  </section>
+
+  <!-- ============================================================
+       05 — AI INBOX
+       ============================================================ -->
+  <div class="section-divider">
+    <span class="section-number">05</span>
+    <h2>The AI inbox</h2>
+  </div>
+
+  <section>
+    <h1>What the AI does</h1>
+    <p>Every inbound reply hits a Resend webhook, which lands the message in the database against the right contact. Before it shows up in the admin inbox, the AI analyser runs and tags it with four things:</p>
+    <div class="table-container">
+      <table class="branded-table">
+        <thead><tr><th style="width: 130pt">Field</th><th>What it means</th></tr></thead>
+        <tbody>
+          <tr><td>Sentiment</td><td><code>positive</code>, <code>negative</code>, or <code>neutral</code>. The headline read on the reply.</td></tr>
+          <tr><td>Intent</td><td>One of: <code>schedule_call</code>, <code>wants_info</code>, <code>objection</code>, <code>future_followup</code>, <code>not_interested</code>, <code>unsubscribe</code>, <code>other</code>. More precise than sentiment.</td></tr>
+          <tr><td>Summary</td><td>One-line plain-English summary so you can scan the inbox without opening every thread.</td></tr>
+          <tr><td>Suggested reply</td><td>A drafted response in your voice. You can send as-is, edit, or ignore.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h1>How accurate is "positive"?</h1>
+    <p>The AI reads the whole thread, not just the latest reply. If the prior turns establish context ("we talked last month, send me the proposal"), it factors that in. The sentiment field is the trigger that pushes a CRM update: a positive reply moves a deal from <strong>Lead</strong> to <strong>Contacted</strong>.</p>
+    <div class="callout callout-medium">
+      <strong>Important guardrail:</strong> a positive reply <em>never</em> auto-promotes a deal past <strong>Contacted</strong>. The AI can flag intent <code>schedule_call</code>, but only the real Cal.com booking webhook can move a deal to <strong>Meeting Booked</strong>. This stops "yes I'd love to chat" from being misread as a booking.
+    </div>
+  </section>
+
+  <section>
+    <h1>The voice (locked)</h1>
+    <p>The suggested-reply prompt is tuned to a specific brand voice: Australian English, plainspoken, no em-dashes, no buzzwords. Banned phrases include "AI automation", "AI-powered", "circle back", "touch base", "reach out", "leverage", "synergy". The signoff is fixed format with the sender's first name injected.</p>
+    <p>If you change the prompt in <code>lib/outreach/ai/reply-analyzer.ts</code>, run <code>bun scripts/eval-replies.ts</code> to sanity-check the output against eight test cases before shipping.</p>
+  </section>
+
+  <!-- ============================================================
+       06 — CAL.COM SYNC
+       ============================================================ -->
+  <div class="section-divider">
+    <span class="section-number">06</span>
+    <h2>Cal.com to CRM sync</h2>
+  </div>
+
+  <section>
+    <h1>The booking flow</h1>
+    <ol>
+      <li>A contact replies positively to an outreach email. The AI flags it; the deal moves to <strong>Contacted</strong>; the suggested reply includes your Cal.com link.</li>
+      <li>You send the reply (or the AI's suggestion auto-fills it). The contact clicks the Cal.com link.</li>
+      <li>The contact books a slot. Cal.com fires a <code>BOOKING_CREATED</code> webhook to your platform.</li>
+      <li>The webhook handler verifies the HMAC signature, finds the contact by email, upgrades their status to <code>qualified</code>, and moves the deal to <strong>Meeting Booked</strong>.</li>
+      <li>The booking appears in the contact's timeline, with the start time and meeting link.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h1>Triggers Cal.com should send</h1>
+    <div class="table-container">
+      <table class="branded-table borderless">
+        <thead><tr><th>Event</th><th>What happens here</th></tr></thead>
+        <tbody>
+          <tr><td>BOOKING_CREATED</td><td>Contact -> qualified. Deal -> Meeting Booked. Booking saved to timeline.</td></tr>
+          <tr><td>BOOKING_RESCHEDULED</td><td>Booking time updated on the existing timeline entry.</td></tr>
+          <tr><td>BOOKING_CANCELLED</td><td>Timeline marked cancelled. Deal stage does NOT auto-revert (manual call).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h1>DNS gotcha</h1>
+    <div class="callout callout-medium">
+      <strong>If you put your site behind Cloudflare, do not point the Cal.com webhook at your apex domain.</strong> Cloudflare's free-tier Bot Fight Mode returns HTTP 403 for Cal.com's POSTs before they reach your server. The fix is to set up a separate <code>hooks.yourdomain.com</code> subdomain as DNS-only (grey cloud) pointing at your Railway service, and use that as the Cal.com subscriber URL. The existing setup follows this pattern; don't "clean it up" by collapsing back to one domain.
+    </div>
+  </section>
+
+  <!-- ============================================================
+       07 — WEBHOOKS
+       ============================================================ -->
+  <div class="section-divider">
+    <span class="section-number">07</span>
+    <h2>Webhooks and integrations</h2>
+  </div>
+
+  <section>
+    <h1>Every webhook the platform owns</h1>
+    <div class="table-container">
+      <table class="branded-table">
+        <thead>
+          <tr><th style="width: 180pt">Endpoint</th><th style="width: 110pt">Source</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>/api/webhooks/cal</code></td><td>Cal.com</td><td>Booking lifecycle, drives CRM stage changes.</td></tr>
+          <tr><td><code>/api/outreach/webhooks/resend</code></td><td>Resend</td><td>Send status, opens, clicks, bounces, inbound replies. Drives campaign analytics and the AI inbox.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h1>How inbound replies match the right contact</h1>
+    <p>When Resend posts an inbound reply, the webhook handler:</p>
+    <ol>
+      <li>Pulls the <code>In-Reply-To</code> and <code>References</code> headers from the email.</li>
+      <li>Looks for those Message-IDs in <code>outreach_contacts.email_{1,2,3}_resend_id</code>. (Resend uses the original send ID as the Message-ID.)</li>
+      <li>If headers are missing (some mail clients strip them), falls back to matching the inbound From address.</li>
+      <li>Files the reply against that contact and triggers the AI analyser.</li>
+    </ol>
+    <p>This is why you should never reintroduce UUID-suffixed Reply-To addresses, the contact-matching path is what makes the brand-friendly Reply-To safe.</p>
+  </section>
+
+  <section>
+    <h1>Security on every webhook</h1>
+    <p>Both endpoints verify an HMAC-SHA256 signature against a shared secret. If the signature is wrong the request is rejected with 401. Both endpoints also de-duplicate by event/message ID, so a retry from Cal.com or Resend can't double-process the same event.</p>
+  </section>
+
+  <!-- ============================================================
+       08 — CONFIGURATION
+       ============================================================ -->
+  <div class="section-divider">
+    <span class="section-number">08</span>
+    <h2>What you need to configure</h2>
+  </div>
+
+  <section>
+    <h1>The minimum env var set</h1>
+    <p>Copy <code>.env.example</code> to <code>.env.local</code> for local dev, and set these in Railway -&gt; Variables for production. Every one of these must be filled or the app will fail to boot.</p>
+    <div class="table-container">
+      <table class="branded-table">
+        <thead><tr><th style="width: 200pt">Variable</th><th>What it's for</th></tr></thead>
+        <tbody>
+          <tr><td><code>DATABASE_URL</code></td><td>Postgres connection string. Use Railway's public URL for local dev.</td></tr>
+          <tr><td><code>AUTH_SECRET</code></td><td>NextAuth session signing key. Generate with <code>openssl rand -base64 32</code>.</td></tr>
+          <tr><td><code>NEXTAUTH_URL</code></td><td>Public URL of the admin (e.g. <code>https://admin.yourdomain.com</code>).</td></tr>
+          <tr><td><code>INTEGRATION_ENCRYPTION_KEY</code></td><td>Encrypts API keys stored in the DB. <code>openssl rand -hex 32</code>. <strong>Do not change this once data exists.</strong></td></tr>
+          <tr><td><code>RESEND_API_KEY</code></td><td>From your Resend dashboard. Outbound + inbound email.</td></tr>
+          <tr><td><code>ANTHROPIC_API_KEY</code></td><td>From console.anthropic.com. Powers the AI reply analyser.</td></tr>
+          <tr><td><code>DEFAULT_FROM_EMAIL</code></td><td>The verified sending address (e.g. <code>hello@email.yourdomain.com</code>).</td></tr>
+          <tr><td><code>NEWSLETTER_FROM_EMAIL</code></td><td>Separate from-address for newsletter sends if you want one.</td></tr>
+          <tr><td><code>CAL_WEBHOOK_SECRET</code></td><td>Generate, then paste into Cal.com's webhook settings as the shared HMAC secret.</td></tr>
+          <tr><td><code>UNSUBSCRIBE_SECRET</code></td><td>Signs unsubscribe links so they can't be forged.</td></tr>
+          <tr><td><code>BUCKET_*</code></td><td>Six vars for S3-compatible storage (endpoint, region, name, force-path-style, access key, secret key).</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h1>One-off identity setup</h1>
+    <p>Even after env vars are set, you need to do this per-tenant:</p>
+    <ol>
+      <li><strong>Verify your sending domain in Resend</strong> (SPF, DKIM, DMARC). Without this, mail will go to spam or be rejected outright.</li>
+      <li><strong>Create at least one sender account</strong> in the admin (Outreach -&gt; Sender Accounts). Give it a real mailbox, a display name, and a signature.</li>
+      <li><strong>Set up a Cal.com event type</strong> for your discovery / consultation call. Copy its booking URL into the AI reply analyser's system prompt so suggested replies link to the right URL.</li>
+      <li><strong>Register the Cal.com webhook</strong> in Cal.com's settings -&gt; webhooks. URL is <code>https://hooks.yourdomain.com/api/webhooks/cal</code>; secret matches <code>CAL_WEBHOOK_SECRET</code>; triggers include BOOKING_CREATED at minimum.</li>
+      <li><strong>Register the Resend webhook</strong> in Resend's dashboard. URL is <code>https://yourdomain.com/api/outreach/webhooks/resend</code>; subscribe to send, delivered, opened, clicked, bounced, complained, and email.received.</li>
+      <li><strong>Create your admin user</strong> via the invitation flow (Settings -&gt; Users) and set up TOTP two-factor on first login.</li>
+    </ol>
+  </section>
+
+  <!-- ============================================================
+       09 — RAILWAY DEPLOY
+       ============================================================ -->
+  <div class="section-divider">
+    <span class="section-number">09</span>
+    <h2>Deploying on Railway</h2>
+  </div>
+
+  <section>
+    <h1>The three services</h1>
+    <p>One Railway project, three services, all from this same repo:</p>
+    <div class="table-container">
+      <table class="branded-table">
+        <thead><tr><th style="width: 100pt">Service</th><th style="width: 130pt">Builder</th><th>Start command</th></tr></thead>
+        <tbody>
+          <tr><td>website</td><td><code>Dockerfile</code></td><td><code>node .next/standalone/server.js</code></td></tr>
+          <tr><td>worker</td><td><code>Dockerfile.worker</code></td><td><code>bun scripts/worker.ts</code></td></tr>
+          <tr><td>Postgres</td><td>Railway managed</td><td>(not your problem)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout callout-info">
+      <strong>Both services deploy from the same <code>main</code> branch.</strong> The build configs in <code>railway.json</code> and <code>railway.worker.json</code> tell Railway which Dockerfile each service should use. Push to main, both services rebuild.
+    </div>
+  </section>
+
+  <section>
+    <h1>Add an object-storage bucket</h1>
+    <p>Avatars and uploaded logos go to S3-compatible storage. In Railway, add a Bucket service to the project (it's a one-click resource). Then copy its credentials into the website service's <code>BUCKET_*</code> env vars. For local development, run <code>docker compose up -d minio</code>, the bucket is created automatically and the <code>BUCKET_*</code> defaults in <code>.env.example</code> already point at it.</p>
+  </section>
+
+  <section>
+    <h1>Database migrations</h1>
+    <p>Schema migrations live in <code>lib/db/drizzle/*.sql</code>. They're plain SQL files, run in order. To apply them against a database:</p>
+    <pre><code>bunx drizzle-kit migrate</code></pre>
+    <p>When you change <code>lib/db/schema.ts</code>, generate a new migration file with:</p>
+    <pre><code>bunx drizzle-kit generate</code></pre>
+    <div class="callout callout-critical">
+      <strong>Never run <code>drizzle-kit push</code> against production.</strong> Push bypasses migration files and can corrupt the live DB. Push is for local-dev iteration only; migrate is for everything else.
+    </div>
+  </section>
+
+  <!-- ============================================================
+       10 — FIRST-RUN CHECKLIST
+       ============================================================ -->
+  <div class="section-divider">
+    <span class="section-number">10</span>
+    <h2>First-run checklist</h2>
+  </div>
+
+  <section>
+    <h1>From zero to sending</h1>
+    <ol>
+      <li>Clone the repo, <code>bun install</code>.</li>
+      <li>Copy <code>.env.example</code> to <code>.env.local</code>, fill in <code>DATABASE_URL</code> + <code>AUTH_SECRET</code> + the keys from section 8.</li>
+      <li><code>docker compose up -d minio</code> to start local object storage.</li>
+      <li><code>bunx drizzle-kit migrate</code> to create the schema.</li>
+      <li><code>bun run dev</code>. The admin boots on <code>http://localhost:3500</code>.</li>
+      <li>Hit the login page, create your admin via the invitation flow, set up TOTP.</li>
+      <li>In Settings -&gt; Integrations, paste in your Resend, Anthropic, and Cal.com keys.</li>
+      <li>In Outreach -&gt; Sender Accounts, create your first sender mailbox with a signature.</li>
+      <li>In Outreach -&gt; Campaigns, create a campaign, write the three step templates, import contacts (CSV).</li>
+      <li>Start the campaign. The worker picks up the first batch of sends inside the next business-hours window.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h1>When something breaks</h1>
+    <div class="card-grid">
+      <div class="card">
+        <h3>Emails not sending</h3>
+        <p>Check the worker logs in Railway. The web service can enqueue jobs but only the worker sends them. If the worker is down, the queue grows.</p>
+      </div>
+      <div class="card">
+        <h3>Replies not appearing</h3>
+        <p>Check the Resend webhook is configured and that <code>email.received</code> is enabled. Verify the HMAC secret matches <code>RESEND_WEBHOOK_SECRET</code> in env.</p>
+      </div>
+      <div class="card">
+        <h3>Bookings not updating the CRM</h3>
+        <p>Cal.com webhook is the only path. Check the <code>hooks.</code> subdomain is grey-cloud in Cloudflare, not orange-cloud. Verify <code>CAL_WEBHOOK_SECRET</code> matches.</p>
+      </div>
+      <div class="card">
+        <h3>AI suggesting weird replies</h3>
+        <p>Run <code>bun scripts/eval-replies.ts</code> to see what the prompt produces against eight known inputs. If a phrase keeps creeping in, add it to the banned list in <code>reply-analyzer.ts</code>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h1>One sentence to remember</h1>
+    <blockquote class="quote-block">
+      <p>The website enqueues, the worker sends, the AI reads, the webhooks decide. Each piece does one thing; they meet in Postgres.</p>
+    </blockquote>
+  </section>
+
+</body>
+</html>

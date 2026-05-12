@@ -160,3 +160,11 @@ Cover → TOC → Problem → Solution → Phased plan (cards) → Pricing (tabl
 - **Tables not rounded** = missing `<div class="table-container">` wrapper.
 - **Cover background not full-bleed** = `.cover-page` must be a direct child of `<body>`.
 - **Fonts look like Times New Roman** = Google Fonts CDN unreachable. Check internet, or fall back to `'Helvetica'` / `'Arial'`.
+- **Two cards stacked instead of side-by-side** = should not happen any more (the grid is flex-based). If it does, you're probably using a custom inline style overriding the flex layout. Stop and check.
+
+## Layout rules of thumb
+
+- **`.card-grid` with 2 cards** = always one row of 2 side-by-side cards. **Use this for paired concepts** (e.g. "website service / worker service"). Never stack two cards manually with `<br>` or block-level wrappers.
+- **`.card-grid` with 4 cards** = two rows of 2.
+- **`.card-grid-4`** = four narrow cards in a single row, for metric/stat callouts.
+- **Odd card counts (3, 5)** leave a gap, avoid them. Either pad to an even count or use a different component.

@@ -168,6 +168,8 @@ Five colour-coded variants for finding severity:
 
 ## Card Grid (2-column)
 
+Cards always render side-by-side via flexbox. **2 cards = one row of 2. 4 cards = two rows of 2.** This is guaranteed regardless of card content length or position on the page (the old column-based implementation could stack 2 short cards in one column near a page break, which was wrong).
+
 ```html
 <div class="card-grid">
   <div class="card">
@@ -189,7 +191,12 @@ Five colour-coded variants for finding severity:
 </div>
 ```
 
-For 4 narrower columns, use `card-grid-4`.
+For 4 narrow columns in a single row (e.g. metric callouts), use `card-grid-4`. With `card-grid-4`, all 4 cards sit in one row.
+
+**Rules:**
+- Use exactly 2 or 4 cards inside `.card-grid`. Odd counts (1, 3, 5) leave a gap on the last row.
+- For exactly 2 wide cards in one row, use `.card-grid` with 2 children, not `.card-grid-4`.
+- Each card breaks together (no mid-card page splits), but the grid itself can break between rows.
 
 ---
 

@@ -396,29 +396,38 @@ h3 {
   margin: 0;
 }
 
+/* Card grids use flexbox so cards always sit side-by-side, regardless of
+   content length or proximity to a page break. The old column-count
+   implementation balanced columns top-to-bottom, which could stack two
+   short cards in one column if they happened to land near a page edge.
+   Flex with wrap gives: 2 cards => 1 row, 4 cards => 2 rows of 2. */
 .card-grid {
   margin: 6pt 0;
-  column-count: 2;
-  column-gap: 8pt;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8pt;
 }
 
 .card-grid .card {
-  display: inline-block;
-  width: 100%;
-  margin: 0 0 8pt 0;
+  flex: 1 1 calc(50% - 4pt);
+  min-width: calc(50% - 4pt);
+  max-width: calc(50% - 4pt);
+  margin: 0;
   break-inside: avoid;
 }
 
 .card-grid-4 {
   margin: 10pt 0;
-  column-count: 4;
-  column-gap: 8pt;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8pt;
 }
 
 .card-grid-4 .card {
-  display: inline-block;
-  width: 100%;
-  margin: 0 0 8pt 0;
+  flex: 1 1 calc(25% - 6pt);
+  min-width: calc(25% - 6pt);
+  max-width: calc(25% - 6pt);
+  margin: 0;
   break-inside: avoid;
 }
 

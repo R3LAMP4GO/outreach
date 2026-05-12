@@ -90,3 +90,6 @@ package-lock.json
 # Playwright
 test-results/
 playwright-report/
+
+# Python venv (for the .gg/skills/pdf generator)
+.venv/
