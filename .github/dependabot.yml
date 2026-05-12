@@ -1,28 +1,67 @@
 # Dependabot config — auto-PRs to keep deps + GitHub Actions up to date.
-# Free for private repos. Disable individual ecosystems below if noisy.
 #
+# Free for public repos. Disable individual ecosystems below if noisy.
 # Docs: https://docs.github.com/en/code-security/dependabot
-
+#
+# Why the "bun" ecosystem (not "npm"):
+# This project uses Bun as the package manager and ships a bun.lock (no
+# package-lock.json). The npm ecosystem can read package.json fine, but it
+# does not know how to regenerate bun.lock — so PRs would update version
+# strings while leaving the lockfile stale, breaking `bun install
+# --frozen-lockfile` in CI. The bun ecosystem reads + writes bun.lock
+# natively. Pattern matches polyipseity/obsidian-terminal,
+# boardsesh/boardsesh, neilotoole/sq, and other bun-based projects.
+#
+# Why majors are ignored:
+# Major-version bumps (TS, ESLint, Next, React major, etc.) almost always
+# require code changes. Letting Dependabot auto-open them creates merge-PR
+# noise that never lands. Minor/patch is where the real value is, especially
+# security backports. Major bumps get done deliberately, not on a schedule.
 version: 2
 updates:
-  # npm — Bun reads package.json, so the npm ecosystem covers it.
-  - package-ecosystem: "npm"
+  # Bun (reads + writes bun.lock natively)
+  - package-ecosystem: "bun"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
     open-pull-requests-limit: 5
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # Auto-PRs for major bumps are almost always discarded. Handle these by
+      # hand. To take a major update, run `bun add <pkg>@latest` locally,
+      # verify it builds, and commit.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
 
   # GitHub Actions versions in .github/workflows/*.yml
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    commit-message:
+      prefix: "chore(actions)"
+      include: "scope"
 
-  # Dockerfile base images
+  # Dockerfile base images. Node major bumps are explicitly ignored — Node 22
+  # is LTS until April 2027, no reason to chase non-LTS majors.
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+    commit-message:
+      prefix: "chore(docker)"
+      include: "scope"
