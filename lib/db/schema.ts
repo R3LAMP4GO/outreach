@@ -654,8 +654,12 @@ export const outreachCampaigns = pgTable("outreach_campaigns", {
   description: text("description"),
   email2Delay: integer("email_2_delay"),
   email3Delay: integer("email_3_delay"),
-  emailBody: text("email_body"),
-  emailSubject: text("email_subject"),
+  email1Template: text("email_1_template").notNull().default("{{email_1_body}}"),
+  email2Template: text("email_2_template").notNull().default("{{email_2_body}}"),
+  email3Template: text("email_3_template").notNull().default("{{email_3_body}}"),
+  email1SubjectTemplate: text("email_1_subject_template"),
+  email2SubjectTemplate: text("email_2_subject_template"),
+  email3SubjectTemplate: text("email_3_subject_template"),
   endDate: timestamp("end_date", { withTimezone: true, mode: "string" }),
   fromEmail: text("from_email").notNull(),
   fromName: text("from_name"),
@@ -834,6 +838,8 @@ export const outreachSenderAccounts = pgTable("outreach_sender_accounts", {
   isActive: boolean("is_active"),
   lastSentAt: timestamp("last_sent_at", { withTimezone: true, mode: "string" }),
   name: text("name").notNull(),
+  signatureHtml: text("signature_html"),
+  signaturePlainText: text("signature_plain_text"),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
 });
 

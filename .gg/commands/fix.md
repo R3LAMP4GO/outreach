@@ -70,7 +70,7 @@ Run all domain agents simultaneously and wait for all to complete.
 
 **Build errors**
 ```text
-Fix all build errors in /Users/jakeschepis/GitHub/website.
+Fix all build errors in /Users/jakeschepis/GitHub/website copy.
 
 Errors:
 [PASTE FULL build output]
@@ -84,7 +84,7 @@ Requirements:
 
 **Type errors**
 ```text
-Fix all TypeScript type errors in /Users/jakeschepis/GitHub/website.
+Fix all TypeScript type errors in /Users/jakeschepis/GitHub/website copy.
 
 Errors:
 [PASTE FULL typecheck output]
@@ -98,7 +98,7 @@ Requirements:
 
 **Lint errors**
 ```text
-Fix all ESLint errors in /Users/jakeschepis/GitHub/website.
+Fix all ESLint errors in /Users/jakeschepis/GitHub/website copy.
 
 Errors:
 [PASTE FULL lint output]
@@ -112,7 +112,7 @@ Requirements:
 
 **Dead code (knip)**
 ```text
-Fix all knip issues in /Users/jakeschepis/GitHub/website.
+Fix all knip issues in /Users/jakeschepis/GitHub/website copy.
 
 Errors:
 [PASTE FULL knip output]
@@ -125,7 +125,7 @@ Requirements:
 
 **Test failures**
 ```text
-Fix all unit test failures in /Users/jakeschepis/GitHub/website.
+Fix all unit test failures in /Users/jakeschepis/GitHub/website copy.
 
 Errors:
 [PASTE FULL test output]

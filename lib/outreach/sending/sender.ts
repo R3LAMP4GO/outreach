@@ -9,8 +9,8 @@ import { db } from "@/lib/db";
 import { outreachCampaignSenders } from "@/lib/db/schema";
 import type { Contact, Campaign, SenderAccount } from "../types";
 import type { SendResult } from "./types";
-import { htmlToPlainText } from "../lib/utils";
-import { getThreadingHeaders, getEmailSubject, getEmailBody } from "./threading";
+import { getThreadingHeaders } from "./threading";
+import { renderSequenceBodyHtml, renderSequenceBodyText, renderSequenceSubject } from "./template";
 import { updateContact } from "../contacts/actions";
 import { calculateEmail2SendTime, calculateEmail3SendTime } from "../scheduling/calculator";
 import type { BusinessHoursConfig } from "../types/config";
@@ -192,10 +192,37 @@ export async function sendEmail(
       return result;
     }
 
-    // Get email content
-    const subject = getEmailSubject(contact, emailNumber);
-    const rawBody = getEmailBody(contact, emailNumber);
-    // Replace all template variables in body
+    // Determine if this email should be sent as plain text (computed early so
+    // we can pick the right rendering path for the template).
+    const useTextOnly =
+      campaign.text_only === true ||
+      (campaign.text_only_first === true && emailNumber === 1) ||
+      options?.forceTextOnly === true;
+
+    // Get email content. Subject prefers the campaign-level subject template
+    // for email 1, otherwise falls back to the AI-written contact subject.
+    const subject = renderSequenceSubject(campaign, contact, emailNumber);
+
+    // Compose the body: expand the campaign template's sequence-level tokens
+    // ({{email_body}}, {{signature}}, {{unsubscribe_link}}) first, THEN run
+    // contact-token substitution ({{first_name}} etc.) over the composed
+    // output. This means the AI body's contact tokens are still resolved even
+    // though the body now lives behind a {{email_body}} slot.
+    const rawBody = useTextOnly
+      ? renderSequenceBodyText({
+          campaign,
+          contact,
+          sender,
+          emailNumber,
+          unsubscribeUrl,
+        })
+      : renderSequenceBodyHtml({
+          campaign,
+          contact,
+          sender,
+          emailNumber,
+          unsubscribeUrl,
+        });
     const body = substituteVariables(rawBody, contact, unsubscribeUrl);
 
     // Get threading headers (for Email 2)
@@ -227,12 +254,6 @@ export async function sendEmail(
     // Resend only supports open/click tracking at the domain level, so we
     // update the domain settings before sending. Cached to avoid redundant calls.
     await syncDomainTracking(resend, domain, campaign);
-
-    // Determine if this email should be sent as plain text
-    const useTextOnly =
-      campaign.text_only === true ||
-      (campaign.text_only_first === true && emailNumber === 1) ||
-      options?.forceTextOnly === true;
 
     // Unsubscribe handling: WYSIWYG.
     // We never auto-append a visible unsubscribe footer to the body. If the campaign
@@ -289,13 +310,12 @@ export async function sendEmail(
     };
 
     // Send via Resend — text-only or HTML based on campaign settings.
-    // When the body contains a {{unsubscribe_url}} token it's already been substituted
-    // above; htmlToPlainText preserves <a href="...">text</a> as "text: url" in the
-    // text-only path so the unsubscribe link is still reachable.
+    // The body has already been rendered for the chosen path (HTML or text)
+    // via renderSequenceBody{Html,Text} above, then contact tokens substituted.
     const response = useTextOnly
       ? await resend.emails.send({
           ...sharedOptions,
-          text: htmlToPlainText(body),
+          text: body,
         })
       : await resend.emails.send({
           ...sharedOptions,

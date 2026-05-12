@@ -889,8 +889,10 @@ export default function OutreachInboxPage() {
                     </div>
                   </div>
 
-                  {/* Sheet header — left edge aligns with the thread message cards below. */}
-                  <div className="px-14 pt-2 pb-4">
+                  {/* Sheet header — left edge aligns with the thread message cards below.
+                  Tight padding on mobile so the summary + badges get full width;
+                  desktop keeps the px-14 indent to align with the toolbar icons. */}
+                  <div className="px-4 pt-2 pb-4 sm:px-14">
                     <div className="flex items-start justify-between gap-3">
                       {/* Left: subject → summary → badges */}
                       <div className="flex-1 min-w-0 space-y-1">
@@ -971,7 +973,7 @@ export default function OutreachInboxPage() {
                   </div>
 
                   {/* Thread + compose */}
-                  <div className="flex-1 overflow-y-auto px-14 py-4 space-y-3">
+                  <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 sm:px-14">
                     {detailLoading ? (
                       <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
                         <IconLoader2 className="w-5 h-5 animate-spin" />

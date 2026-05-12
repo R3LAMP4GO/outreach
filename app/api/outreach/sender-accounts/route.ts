@@ -29,6 +29,8 @@ export async function GET() {
         domain: outreachSenderAccounts.domain,
         isActive: outreachSenderAccounts.isActive,
         dailyLimit: outreachSenderAccounts.dailyLimit,
+        signatureHtml: outreachSenderAccounts.signatureHtml,
+        signaturePlainText: outreachSenderAccounts.signaturePlainText,
       })
       .from(outreachSenderAccounts)
       .where(eq(outreachSenderAccounts.isActive, true))
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { emailPrefix, name } = body;
+    const { emailPrefix, name, signature_html, signature_plain_text } = body;
 
     if (!emailPrefix || !name) {
       return NextResponse.json(
@@ -84,6 +86,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate optional signature fields. Stored raw — the send-time renderer
+    // (lib/outreach/sending/template.ts) sanitises signature_html via DOMPurify.
+    if (
+      signature_html !== undefined &&
+      signature_html !== null &&
+      typeof signature_html !== "string"
+    ) {
+      return NextResponse.json({ error: "signature_html must be a string" }, { status: 400 });
+    }
+    if (
+      signature_plain_text !== undefined &&
+      signature_plain_text !== null &&
+      typeof signature_plain_text !== "string"
+    ) {
+      return NextResponse.json({ error: "signature_plain_text must be a string" }, { status: 400 });
+    }
+
     // Construct full email from prefix + domain
     const domain = "email.__YOUR_DOMAIN__";
     const email = `${emailPrefix}@${domain}`;
@@ -97,6 +116,8 @@ export async function POST(request: NextRequest) {
         isActive: true,
         dailyLimit: OUTREACH_SENDER_DAILY_LIMIT,
         emailsSentToday: 0,
+        signatureHtml: signature_html ?? null,
+        signaturePlainText: signature_plain_text ?? null,
       })
       .returning();
 

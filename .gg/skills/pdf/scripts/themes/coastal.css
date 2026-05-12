@@ -1,0 +1,635 @@
+/* Coastal Programs Brand Theme — Professional PDF Styling */
+/* Used with WeasyPrint HTML→PDF generation */
+/* Palette sampled directly from icon-light.png — sophisticated greyscale */
+
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ============================================================
+   CSS VARIABLES — Coastal Programs greyscale palette
+   (Old blue variable names retained for backwards compatibility
+   with existing HTML — values now resolve to refined greys.)
+   ============================================================ */
+:root {
+  /* Primary palette (matches logo tonal range) */
+  --graphite:   #404040;       /* primary — CP letter dark, headings, accents */
+  --charcoal:   #1A1A1A;       /* deepest — body emphasis, cover gradient end */
+  --abyss-tone: #0A0A0A;       /* near-black for full-bleed contrast */
+  --slate:      #888888;       /* mid grey — secondary accents, captions */
+  --pebble:     #C8C8C8;       /* light grey — soft accents, dividers */
+  --stone:      #F0F0F0;       /* light backgrounds, table tints, callouts */
+  --mist:       #F8F8F8;       /* subtle off-white card backgrounds */
+  --white:      #FFFFFF;
+  --dark-text:  #1A1A1A;
+  --mid-grey:   #6B6B6B;       /* body muted text */
+  --light-grey: #F2F2F2;
+  --card-bg:    #FAFAFA;
+  --border-light: #DDDDDD;
+
+  /* Backwards-compatibility aliases — old variable names → new greys.
+     Means existing HTML using --ocean-blue, --foam etc. just works. */
+  --ocean-blue:        var(--graphite);
+  --deep-navy:         var(--charcoal);
+  --abyss:             var(--abyss-tone);
+  --foam:              var(--stone);
+  --sky:               var(--slate);
+  --sand:              var(--mist);
+  --section-num-tint:  var(--pebble);
+
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+/* ============================================================
+   PAGE SETUP
+   ============================================================ */
+@page {
+  size: A4;
+  margin: 18mm 20mm 18mm 20mm;
+
+  @bottom-center {
+    content: counter(page);
+    font-family: 'Inter', 'Helvetica', sans-serif;
+    font-size: 8pt;
+    color: var(--mid-grey);
+  }
+
+  @top-left {
+    content: "COASTAL PROGRAMS";
+    font-family: 'Inter', 'Helvetica', sans-serif;
+    font-size: 7pt;
+    color: var(--mid-grey);
+    letter-spacing: 0.08em;
+  }
+
+  @top-right {
+    content: "CONFIDENTIAL";
+    font-family: 'Inter', 'Helvetica', sans-serif;
+    font-size: 7pt;
+    color: var(--mid-grey);
+    letter-spacing: 0.08em;
+  }
+}
+
+/* Named pages with no headers/footers */
+@page cover {
+  margin: 0;
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-center { content: none; }
+}
+
+@page divider {
+  margin: 0;
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-center { content: none; }
+}
+
+/* ============================================================
+   BASE TYPOGRAPHY
+   ============================================================ */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 9.5pt;
+  color: var(--dark-text);
+  line-height: 1.5;
+}
+
+p {
+  margin: 3pt 0;
+}
+
+strong {
+  font-weight: 600;
+}
+
+a {
+  color: var(--ocean-blue);
+  text-decoration: none;
+}
+
+code, pre {
+  font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+  font-size: 8.5pt;
+}
+
+pre {
+  background: var(--foam);
+  padding: 8pt 10pt;
+  border-radius: var(--radius-sm);
+  border-left: 3pt solid var(--ocean-blue);
+  margin: 6pt 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  break-inside: avoid;
+}
+
+code {
+  background: var(--foam);
+  padding: 1pt 4pt;
+  border-radius: 3pt;
+  color: var(--deep-navy);
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+}
+
+/* ============================================================
+   HEADINGS (Teko display + Inter for h3)
+   ============================================================ */
+h1 {
+  font-family: 'Teko', 'Arial', sans-serif;
+  font-weight: 500;
+  font-size: 22pt;
+  color: var(--ocean-blue);
+  margin-top: 12pt;
+  margin-bottom: 4pt;
+  line-height: 1.2;
+  break-after: avoid;
+  letter-spacing: 0.01em;
+}
+
+h2 {
+  font-family: 'Teko', 'Arial', sans-serif;
+  font-weight: 500;
+  font-size: 15pt;
+  color: var(--deep-navy);
+  margin-top: 10pt;
+  margin-bottom: 4pt;
+  line-height: 1.2;
+  break-after: avoid;
+}
+
+h3 {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-weight: 600;
+  font-size: 10pt;
+  color: var(--ocean-blue);
+  margin-top: 6pt;
+  margin-bottom: 3pt;
+  break-after: avoid;
+}
+
+/* ============================================================
+   COVER PAGE — Ocean Blue background, white logo + title
+   ============================================================ */
+.cover-page {
+  page: cover;
+  background: var(--ocean-blue);
+  background-image: linear-gradient(180deg, var(--ocean-blue) 0%, var(--deep-navy) 100%);
+  width: 210mm;
+  height: 297mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  break-after: page;
+  position: relative;
+}
+
+.cover-logo {
+  width: 60mm;
+  margin-bottom: 30pt;
+}
+
+.cover-page h1 {
+  font-family: 'Teko', 'Arial', sans-serif;
+  font-weight: 700;
+  font-size: 48pt;
+  color: var(--white);
+  letter-spacing: 0.05em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.cover-subtitle {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 14pt;
+  font-weight: 300;
+  color: var(--sky);
+  margin-top: 6pt;
+  letter-spacing: 0.02em;
+}
+
+.cover-rule {
+  width: 80mm;
+  border: none;
+  border-top: 0.5pt solid rgba(255, 255, 255, 0.4);
+  margin: 24pt auto;
+}
+
+.cover-meta {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 10pt;
+  color: rgba(180, 200, 240, 0.9);
+  margin: 2pt 0;
+  letter-spacing: 0.04em;
+}
+
+/* ============================================================
+   SECTION DIVIDERS — Big section number, blue background
+   ============================================================ */
+.section-divider {
+  page: divider;
+  background: var(--ocean-blue);
+  background-image: linear-gradient(135deg, var(--ocean-blue) 0%, var(--deep-navy) 100%);
+  width: 210mm;
+  height: 297mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  break-before: page;
+  break-after: page;
+}
+
+.section-number {
+  font-family: 'Teko', 'Arial', sans-serif;
+  font-weight: 400;
+  font-size: 80pt;
+  color: var(--section-num-tint);
+  line-height: 1;
+}
+
+.section-divider h2 {
+  font-family: 'Teko', 'Arial', sans-serif;
+  font-weight: 700;
+  font-size: 28pt;
+  color: var(--white);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 6pt;
+}
+
+/* ============================================================
+   TABLE OF CONTENTS
+   ============================================================ */
+.toc {
+  margin: 12pt 0;
+}
+
+.toc-entry {
+  display: flex;
+  align-items: baseline;
+  padding: 8pt 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.toc-number {
+  font-family: 'Teko', 'Arial', sans-serif;
+  font-weight: 700;
+  font-size: 15pt;
+  color: var(--ocean-blue);
+  width: 35pt;
+  flex-shrink: 0;
+}
+
+.toc-title {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 12pt;
+  color: var(--dark-text);
+}
+
+/* ============================================================
+   ROUNDED TABLES
+   ============================================================ */
+.table-container {
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 6pt 0;
+  break-inside: avoid;
+  background: var(--white);
+  border: 1px solid var(--border-light);
+}
+
+.branded-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.branded-table thead th {
+  background: transparent;
+  color: var(--dark-text);
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-weight: 600;
+  font-size: 8.5pt;
+  padding: 7pt 12pt;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.branded-table.blue-header thead th {
+  background: var(--ocean-blue);
+  color: var(--white);
+  padding: 6pt 12pt;
+}
+
+.branded-table tbody td {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 8.5pt;
+  padding: 5pt 12pt;
+  color: var(--dark-text);
+  vertical-align: top;
+}
+
+.branded-table tbody tr:nth-child(even) {
+  background: var(--foam);
+}
+
+.branded-table tbody tr:nth-child(odd) {
+  background: var(--white);
+}
+
+.branded-table tbody td:first-child {
+  font-weight: 500;
+  color: var(--dark-text);
+}
+
+.branded-table.borderless thead {
+  display: none;
+}
+
+.branded-table.borderless tbody td {
+  padding: 5pt 12pt;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.branded-table.borderless tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ============================================================
+   CARDS
+   ============================================================ */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-light);
+  padding: 10pt 14pt;
+  margin: 5pt 0;
+  break-inside: avoid;
+}
+
+.card h3 {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-weight: 700;
+  font-size: 10pt;
+  color: var(--ocean-blue);
+  margin: 0 0 3pt 0;
+}
+
+.card p {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 8.5pt;
+  color: var(--dark-text);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.card-grid {
+  margin: 6pt 0;
+  column-count: 2;
+  column-gap: 8pt;
+}
+
+.card-grid .card {
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 8pt 0;
+  break-inside: avoid;
+}
+
+.card-grid-4 {
+  margin: 10pt 0;
+  column-count: 4;
+  column-gap: 8pt;
+}
+
+.card-grid-4 .card {
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 8pt 0;
+  break-inside: avoid;
+}
+
+/* ============================================================
+   QUOTE / CALLOUT BLOCKS
+   ============================================================ */
+.quote-block {
+  background: var(--foam);
+  border-radius: var(--radius);
+  padding: 10pt 16pt;
+  margin: 6pt 0;
+  break-inside: avoid;
+}
+
+.quote-block p {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 10pt;
+  color: var(--deep-navy);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.question-box {
+  background: var(--foam);
+  border-left: 4pt solid var(--ocean-blue);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 7pt 12pt 7pt 14pt;
+  margin: 6pt 0;
+  break-inside: avoid;
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 8.5pt;
+  color: var(--deep-navy);
+}
+
+.question-box::before {
+  content: "? ";
+  font-weight: 700;
+  font-size: 11pt;
+  color: var(--ocean-blue);
+}
+
+/* Severity callouts (for security audit reports) */
+.callout {
+  border-radius: var(--radius);
+  padding: 8pt 14pt;
+  margin: 6pt 0;
+  break-inside: avoid;
+  font-size: 9pt;
+}
+
+.callout-critical { background: #FEE2E2; border-left: 4pt solid #DC2626; color: #7F1D1D; }
+.callout-medium   { background: #FEF3C7; border-left: 4pt solid #D97706; color: #78350F; }
+.callout-low      { background: var(--foam); border-left: 4pt solid var(--ocean-blue); color: var(--deep-navy); }
+.callout-info     { background: var(--light-grey); border-left: 4pt solid var(--mid-grey); color: var(--dark-text); }
+.callout-success  { background: #D1FAE5; border-left: 4pt solid #059669; color: #064E3B; }
+
+/* ============================================================
+   COLOUR SWATCHES
+   ============================================================ */
+.swatch-grid {
+  display: flex;
+  gap: 10pt;
+  flex-wrap: wrap;
+  margin: 10pt 0;
+}
+
+.swatch {
+  border-radius: var(--radius);
+  padding: 14pt 16pt;
+  min-width: 100pt;
+  flex: 1;
+  break-inside: avoid;
+}
+
+.swatch-name {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-weight: 700;
+  font-size: 11pt;
+}
+
+.swatch-hex,
+.swatch-rgb {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 9pt;
+  margin-top: 4pt;
+  opacity: 0.85;
+}
+
+/* ============================================================
+   LOGO SHOWCASES
+   ============================================================ */
+.logo-showcase-grid {
+  display: flex;
+  gap: 10pt;
+  flex-wrap: wrap;
+  margin: 10pt 0;
+}
+
+.logo-showcase {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-align: center;
+  break-inside: avoid;
+  flex: 1;
+  min-width: 80pt;
+}
+
+.logo-showcase img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.logo-showcase .caption {
+  padding: 6pt 4pt;
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 8pt;
+  color: var(--dark-text);
+  background: var(--white);
+}
+
+/* ============================================================
+   BULLET LISTS
+   ============================================================ */
+ul, ol {
+  padding-left: 16pt;
+  margin: 4pt 0;
+}
+
+ul li, ol li {
+  font-size: 9pt;
+  margin: 2pt 0;
+  line-height: 1.4;
+}
+
+ul li::marker {
+  color: var(--ocean-blue);
+}
+
+ol li::marker {
+  color: var(--ocean-blue);
+  font-weight: 600;
+}
+
+/* ============================================================
+   SECTIONS (orphan prevention)
+   ============================================================ */
+section {
+  margin-bottom: 2pt;
+}
+
+section > h1:first-child,
+section > h2:first-child {
+  break-after: avoid;
+}
+
+/* ============================================================
+   FONT DISPLAY
+   ============================================================ */
+.font-display {
+  display: flex;
+  gap: 20pt;
+  margin: 10pt 0;
+  align-items: baseline;
+}
+
+.font-display .font-name {
+  font-size: 30pt;
+  line-height: 1;
+}
+
+.font-display .font-name.teko {
+  font-family: 'Teko', 'Arial', sans-serif;
+  font-weight: 700;
+  color: var(--ocean-blue);
+}
+
+.font-display .font-name.inter {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-weight: 400;
+  color: var(--deep-navy);
+}
+
+.font-display .font-role {
+  font-family: 'Inter', 'Helvetica', sans-serif;
+  font-size: 8pt;
+  color: var(--mid-grey);
+  margin-top: 4pt;
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+.body-bold { font-weight: 600; }
+.text-muted { color: var(--mid-grey); }
+.text-small { font-size: 8pt; }
+.spacer { height: 10pt; }
+.spacer-lg { height: 20pt; }
+.page-break { break-before: page; }
+.keep-together { break-inside: avoid; }
+
+/* ============================================================
+   IMAGE SHOWCASE
+   ============================================================ */
+.image-showcase {
+  margin: 10pt 0;
+  break-inside: avoid;
+}
+
+.image-showcase img {
+  max-width: 100%;
+  height: auto;
+}

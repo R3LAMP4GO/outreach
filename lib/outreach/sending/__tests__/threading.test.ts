@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  getThreadingHeaders,
-  getEmailSubject,
-  getEmailBody,
-  shouldThreadEmail,
-} from "../threading";
+import { getThreadingHeaders, shouldThreadEmail } from "../threading";
 import type { Contact } from "../../types";
 
 /** Minimal contact factory */
@@ -95,54 +90,6 @@ describe("getThreadingHeaders", () => {
     const contact = makeContact({ email_1_message_id: "unique-id-456" });
     const headers = getThreadingHeaders(contact, 2);
     expect(headers["In-Reply-To"]).toBe("<unique-id-456>");
-  });
-});
-
-describe("getEmailSubject", () => {
-  it("returns email_1_subject for email 1", () => {
-    const contact = makeContact({ email_1_subject: "Hello there" });
-    expect(getEmailSubject(contact, 1)).toBe("Hello there");
-  });
-
-  it("returns custom email_2_subject when provided", () => {
-    const contact = makeContact({ email_2_subject: "Custom follow-up" });
-    expect(getEmailSubject(contact, 2)).toBe("Custom follow-up");
-  });
-
-  it("returns Re: prefix for email 2 when no custom subject", () => {
-    const contact = makeContact({
-      email_1_subject: "Quick question",
-      email_2_subject: null,
-    });
-    expect(getEmailSubject(contact, 2)).toBe("Re: Quick question");
-  });
-
-  it("returns email_3_subject for email 3", () => {
-    const contact = makeContact({ email_3_subject: "Last thought" });
-    expect(getEmailSubject(contact, 3)).toBe("Last thought");
-  });
-
-  it("throws for invalid email number", () => {
-    const contact = makeContact();
-    expect(() => getEmailSubject(contact, 4)).toThrow("Invalid email number: 4");
-  });
-});
-
-describe("getEmailBody", () => {
-  it("returns correct body for each email number", () => {
-    const contact = makeContact({
-      email_1_body: "<p>Body 1</p>",
-      email_2_body: "<p>Body 2</p>",
-      email_3_body: "<p>Body 3</p>",
-    });
-    expect(getEmailBody(contact, 1)).toBe("<p>Body 1</p>");
-    expect(getEmailBody(contact, 2)).toBe("<p>Body 2</p>");
-    expect(getEmailBody(contact, 3)).toBe("<p>Body 3</p>");
-  });
-
-  it("throws for invalid email number", () => {
-    const contact = makeContact();
-    expect(() => getEmailBody(contact, 0)).toThrow("Invalid email number: 0");
   });
 });
 

@@ -12,8 +12,18 @@ export interface CreateCampaignInput {
   description?: string;
   from_email: string;
   from_name?: string;
-  email_subject?: string;
-  email_body?: string;
+  /** HTML/text template wrapping the AI-personalised email_1_body. Tokens: {{email_body}}, {{signature}}, {{unsubscribe_link}}. */
+  email_1_template?: string;
+  /** HTML/text template wrapping the AI-personalised email_2_body. */
+  email_2_template?: string;
+  /** HTML/text template wrapping the AI-personalised email_3_body. */
+  email_3_template?: string;
+  /** Optional campaign-level subject override for email 1 (falls back to contact.email_1_subject). */
+  email_1_subject_template?: string;
+  /** Optional campaign-level subject override for email 2 (falls back to contact.email_2_subject). */
+  email_2_subject_template?: string;
+  /** Optional campaign-level subject override for email 3 (falls back to contact.email_3_subject). */
+  email_3_subject_template?: string;
   test_mode?: boolean;
   email_2_delay?: number;
   email_3_delay?: number;

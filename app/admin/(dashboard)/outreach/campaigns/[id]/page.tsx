@@ -224,6 +224,13 @@ interface Campaign {
   text_only_first: boolean;
   stop_company_on_reply: boolean;
   max_new_leads_per_day: number | null;
+  // Per-campaign sequence templates (the shell wrapping each contact's AI body)
+  email_1_template: string;
+  email_2_template: string;
+  email_3_template: string;
+  email_1_subject_template: string | null;
+  email_2_subject_template: string | null;
+  email_3_subject_template: string | null;
 }
 
 interface Contact {
@@ -580,15 +587,147 @@ const LEAD_VARIABLES = [
   { label: "Unsubscribe URL", value: "{{unsubscribe_url}}" },
 ];
 
+/**
+ * Clean malformed AI-generated anchor markup. Mirror of cleanAnchors() in
+ * lib/outreach/sending/template.ts — same regex, same behaviour, so the
+ * Preview agrees with what actually gets sent.
+ *
+ * Handles two AI artefacts:
+ *   1. `<a href="URL">URL<br>—</a>` — the closing `</a>` is in the wrong place,
+ *      pulling the line break and signature lines into the link text. We
+ *      split the anchor at the first `<br>` so the link only wraps its URL.
+ *   2. `<a href="...">—</a>` — a standalone anchor wrapping a single em-dash
+ *      or other punctuation. Unwrapped so the punctuation renders as plain text.
+ */
+function cleanAnchors(html: string): string {
+  if (!html) return html;
+  const splitRegex = /(<a\b[^>]*>)([\s\S]*?)(<br\s*\/?>)([\s\S]*?)(<\/a>)/gi;
+  let prev: string;
+  let cur = html;
+  do {
+    prev = cur;
+    cur = cur.replace(
+      splitRegex,
+      (_, open, before, br, after, close) => `${open}${before}${close}${br}${after}`,
+    );
+  } while (cur !== prev);
+
+  cur = cur.replace(/<a\b[^>]*>([\s\S]*?)<\/a>/gi, (match, inner: string) => {
+    const text = inner.replace(/<[^>]+>/g, "").trim();
+    if (!text || /^[—–\-\u2026\s.,;:!?•·]+$/.test(text)) return inner;
+    return match;
+  });
+
+  return cur;
+}
+
+/**
+ * Substitute every `{{token}}` in `input` using values from the given contact
+ * plus baked-in sample values for sequence-level tokens (signature, unsub
+ * footer). Unknown tokens are left intact so they're visible in the preview.
+ *
+ * Mirrors the server-side template renderer (lib/outreach/sending/template.ts)
+ * for the Preview dialog — same token names, same shape.
+ */
+function renderPreviewTokens(input: string, contact: Contact | undefined): string {
+  if (!contact) return input;
+  const samples: Record<string, string> = {
+    // Lead-level (real values from the first contact)
+    first_name: contact.first_name ?? "",
+    last_name: contact.last_name ?? "",
+    email: contact.email,
+    company: contact.company ?? "",
+    job_title: contact.job_title ?? "",
+    phone: contact.phone ?? "",
+    location: contact.location ?? "",
+    website_url: contact.website_url ?? "",
+    linkedin_url: contact.linkedin_url ?? "",
+    timezone: contact.timezone ?? "",
+    research_report: contact.research_report ?? "",
+    unsubscribe_url: "https://__YOUR_DOMAIN__/unsubscribe/preview",
+    // Sequence-level (real per-step content from the contact's row)
+    email_1_body: contact.email_1_body ?? "",
+    email_2_body: contact.email_2_body ?? "",
+    email_3_body: contact.email_3_body ?? "",
+    email_1_subject: contact.email_1_subject ?? "",
+    email_2_subject: contact.email_2_subject ?? "",
+    email_3_subject: contact.email_3_subject ?? "",
+    // Sample sequence chrome — final email shows the real ones at send time
+    signature: '<p>—<br>Jake Schepis<br><a href="https://__YOUR_DOMAIN__">__YOUR_DOMAIN__</a></p>',
+    unsubscribe_link:
+      '<p style="font-size:12px;color:#888;margin-top:24px;">To unsubscribe, <a href="https://__YOUR_DOMAIN__/unsubscribe/preview">click here</a>.</p>',
+    // Legacy aliases
+    email_body: contact.email_1_body ?? "",
+    email_subject: contact.email_1_subject ?? "",
+  };
+  // Step 1: when a block-level token (body, signature, unsubscribe footer) sits
+  // alone inside a <p> tag like `<p>{{signature}}</p>`, replace the whole <p>
+  // wrapper with the token's value. Otherwise the value's own <p> children get
+  // nested inside the template's <p> and paragraph margins collapse — body and
+  // signature run together with no spacing. Mirror of substituteOnce() in
+  // lib/outreach/sending/template.ts.
+  const blockTokens = new Set([
+    "email_body",
+    "email_1_body",
+    "email_2_body",
+    "email_3_body",
+    "signature",
+    "unsubscribe_link",
+  ]);
+  const blockWrapRe =
+    /<p\b[^>]*>\s*\{\{(email_body|email_[123]_body|signature|unsubscribe_link)\}\}\s*<\/p>/g;
+  let substituted = input.replace(blockWrapRe, (match, key: string) =>
+    blockTokens.has(key) && key in samples ? samples[key] : match,
+  );
+  // Step 2: replace any remaining {{token}} (inline cases) with sample values.
+  substituted = substituted.replace(/\{\{(\w+)\}\}/g, (match, key) =>
+    key in samples ? samples[key] : match,
+  );
+  // Step 3: strip empty <p></p> / <p><br></p> / <p>&nbsp;</p> blocks. TipTap
+  // and AI-generated bodies leave these around; they render as visible blank
+  // lines in the preview. Mirror of EMPTY_P_REGEX in template.ts.
+  substituted = substituted.replace(/<p\b[^>]*>\s*(?:<br\s*\/?>|&nbsp;|\s)*\s*<\/p>/gi, "");
+  // Step 4: clean malformed anchor markup from the AI body.
+  return cleanAnchors(substituted);
+}
+
+interface VariableOption {
+  label: string;
+  value: string;
+}
+
+interface VariableGroup {
+  label: string;
+  items: VariableOption[];
+}
+
 interface EmailEditorProps {
   step: SequenceStep;
   onSubjectChange: (value: string) => void;
   onBodyChange: (value: string) => void;
   onSave?: () => void;
   isSaving?: boolean;
+  /** Optional grouped variable list. Defaults to LEAD_VARIABLES only. */
+  variableGroups?: VariableGroup[];
+  /** Contact whose real values feed the Preview dialog substitution. */
+  previewContact?: Contact;
 }
 
-function EmailEditor({ step, onSubjectChange, onBodyChange, onSave, isSaving }: EmailEditorProps) {
+function EmailEditor({
+  step,
+  onSubjectChange,
+  onBodyChange,
+  onSave,
+  isSaving,
+  variableGroups,
+  previewContact,
+}: EmailEditorProps) {
+  // Flatten the variable groups into a single list for keyboard navigation /
+  // index-based selection in the {{ autocomplete popup.
+  const allVariables = (variableGroups ?? [{ label: "Lead", items: LEAD_VARIABLES }]).flatMap(
+    (g) => g.items,
+  );
+  const editorVariableGroups = variableGroups ?? [{ label: "Lead", items: LEAD_VARIABLES }];
   const [subject, setSubject] = useState(step.subject);
   const [showCodeView, setShowCodeView] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
@@ -677,15 +816,15 @@ function EmailEditor({ step, onSubjectChange, onBodyChange, onSave, isSaving }: 
       if (e.key === "ArrowDown") {
         e.preventDefault();
         e.stopPropagation();
-        setVariablesSelectedIndex((prev) => (prev < LEAD_VARIABLES.length - 1 ? prev + 1 : 0));
+        setVariablesSelectedIndex((prev) => (prev < allVariables.length - 1 ? prev + 1 : 0));
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         e.stopPropagation();
-        setVariablesSelectedIndex((prev) => (prev > 0 ? prev - 1 : LEAD_VARIABLES.length - 1));
+        setVariablesSelectedIndex((prev) => (prev > 0 ? prev - 1 : allVariables.length - 1));
       } else if (e.key === "Enter") {
         e.preventDefault();
         e.stopPropagation();
-        insertVariable(LEAD_VARIABLES[variablesSelectedIndex].value);
+        insertVariable(allVariables[variablesSelectedIndex].value);
       } else if (e.key === "Escape") {
         e.preventDefault();
         setVariablesPopupOpen(false);
@@ -796,11 +935,22 @@ function EmailEditor({ step, onSubjectChange, onBodyChange, onSave, isSaving }: 
                 <Code className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {LEAD_VARIABLES.map((v) => (
-                <DropdownMenuItem key={v.value} onClick={() => insertVariableToSubject(v.value)}>
-                  {v.label}
-                </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-56">
+              {editorVariableGroups.map((group, gi) => (
+                <div key={group.label}>
+                  {gi > 0 && <DropdownMenuSeparator />}
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                    {group.label}
+                  </div>
+                  {group.items.map((v) => (
+                    <DropdownMenuItem
+                      key={v.value}
+                      onClick={() => insertVariableToSubject(v.value)}
+                    >
+                      {v.label}
+                    </DropdownMenuItem>
+                  ))}
+                </div>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -853,20 +1003,34 @@ function EmailEditor({ step, onSubjectChange, onBodyChange, onSave, isSaving }: 
                   <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-b mb-1">
                     Insert Variable
                   </div>
-                  {LEAD_VARIABLES.map((v, idx) => (
-                    <button
-                      key={v.value}
-                      className={`w-full px-3 py-1.5 text-sm text-left transition-colors ${
-                        idx === variablesSelectedIndex
-                          ? "bg-accent text-accent-foreground"
-                          : "hover:bg-accent hover:text-accent-foreground"
-                      }`}
-                      onClick={() => insertVariable(v.value)}
-                      onMouseEnter={() => setVariablesSelectedIndex(idx)}
-                    >
-                      {v.label}
-                    </button>
-                  ))}
+                  {(() => {
+                    let flatIdx = 0;
+                    return editorVariableGroups.map((group, gi) => (
+                      <div key={group.label}>
+                        {gi > 0 && <div className="border-t my-1" />}
+                        <div className="px-3 py-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {group.label}
+                        </div>
+                        {group.items.map((v) => {
+                          const idx = flatIdx++;
+                          return (
+                            <button
+                              key={v.value}
+                              className={`w-full px-3 py-1.5 text-sm text-left transition-colors ${
+                                idx === variablesSelectedIndex
+                                  ? "bg-accent text-accent-foreground"
+                                  : "hover:bg-accent hover:text-accent-foreground"
+                              }`}
+                              onClick={() => insertVariable(v.value)}
+                              onMouseEnter={() => setVariablesSelectedIndex(idx)}
+                            >
+                              {v.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ));
+                  })()}
                 </div>
               </>
             )}
@@ -1092,35 +1256,31 @@ function EmailEditor({ step, onSubjectChange, onBodyChange, onSave, isSaving }: 
         </div>
       </div>
 
-      {/* Email Preview Dialog */}
+      {/* Email Preview Dialog — substitutes against previewContact's real values
+          (the first lead in the campaign). Shows what THIS lead will receive. */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Email Preview</DialogTitle>
-            <DialogDescription>Subject: {subject}</DialogDescription>
+            <DialogDescription>
+              Subject: {renderPreviewTokens(subject, previewContact)}
+              {previewContact ? (
+                <span className="block text-[11px] mt-1">
+                  Showing as it will render for <strong>{previewContact.email}</strong>
+                </span>
+              ) : (
+                <span className="block text-[11px] mt-1 text-amber-600">
+                  No leads in this campaign yet — showing tokens unresolved.
+                </span>
+              )}
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto border rounded-md p-6 bg-white text-gray-900 text-sm">
             <div
               className="prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{
                 __html: DOMPurify.sanitize(
-                  (editor?.getHTML() ?? "").replace(/\{\{(\w+)\}\}/g, (_, key) => {
-                    const samples: Record<string, string> = {
-                      first_name: "Jane",
-                      last_name: "Smith",
-                      email: "jane@example.com",
-                      company: "Acme Corp",
-                      job_title: "CEO",
-                      phone: "+61 400 000 000",
-                      location: "Sydney, NSW",
-                      website_url: "https://example.com",
-                      linkedin_url: "https://linkedin.com/in/janesmith",
-                      timezone: "Australia/Sydney",
-                      research_report: "[research report]",
-                      unsubscribe_url: `${process.env.NEXT_PUBLIC_SITE_URL || "https://__YOUR_DOMAIN__"}/unsubscribe/preview`,
-                    };
-                    return samples[key] ?? `{{${key}}}`;
-                  }),
+                  renderPreviewTokens(editor?.getHTML() ?? "", previewContact),
                 ),
               }}
             />
@@ -1174,30 +1334,57 @@ function EmailEditor({ step, onSubjectChange, onBodyChange, onSave, isSaving }: 
   );
 }
 
-interface SequenceEditorProps {
-  contact: Contact;
+// Sequence-level variables exposed by the campaign template engine.
+// Each lead's AI-written subject/body lives in outreach_contacts; the template
+// pulls them in via these tokens.
+const SEQUENCE_VARIABLES = [
+  { label: "Email 1 — Subject", value: "{{email_1_subject}}" },
+  { label: "Email 1 — Body", value: "{{email_1_body}}" },
+  { label: "Email 2 — Subject", value: "{{email_2_subject}}" },
+  { label: "Email 2 — Body", value: "{{email_2_body}}" },
+  { label: "Email 3 — Subject", value: "{{email_3_subject}}" },
+  { label: "Email 3 — Body", value: "{{email_3_body}}" },
+  { label: "Signature", value: "{{signature}}" },
+  { label: "Unsubscribe Link", value: "{{unsubscribe_link}}" },
+];
+
+interface SequenceTemplateEditorProps {
+  contacts: Contact[];
   campaign: Campaign;
+  onCampaignUpdated?: (campaign: Campaign) => void;
 }
 
-function SequenceEditor({ contact, campaign }: SequenceEditorProps) {
-  // Build sequence steps from contact and campaign data
+/**
+ * Campaign-level Sequence template editor.
+ *
+ * Each campaign owns three body templates + three subject templates (one per
+ * step). The lead-written content (already pre-filled per row in
+ * outreach_contacts.email_N_{body,subject}) is slotted in via per-step tokens
+ * like {{email_1_body}} / {{email_1_subject}}. The Preview substitutes against
+ * the first contact's real values so you see the finished email.
+ */
+function SequenceTemplateEditor({
+  contacts,
+  campaign,
+  onCampaignUpdated,
+}: SequenceTemplateEditorProps) {
   const initialSequence: SequenceStep[] = [
     {
       stepNumber: 1,
-      subject: contact.email_1_subject,
-      body: contact.email_1_body,
+      subject: campaign.email_1_subject_template ?? "{{email_1_subject}}",
+      body: campaign.email_1_template ?? "{{email_1_body}}",
       delayDays: 0,
     },
     {
       stepNumber: 2,
-      subject: contact.email_2_subject || "",
-      body: contact.email_2_body,
+      subject: campaign.email_2_subject_template ?? "{{email_2_subject}}",
+      body: campaign.email_2_template ?? "{{email_2_body}}",
       delayDays: campaign.email_2_delay,
     },
     {
       stepNumber: 3,
-      subject: contact.email_3_subject,
-      body: contact.email_3_body,
+      subject: campaign.email_3_subject_template ?? "{{email_3_subject}}",
+      body: campaign.email_3_template ?? "{{email_3_body}}",
       delayDays: campaign.email_3_delay,
     },
   ];
@@ -1207,6 +1394,7 @@ function SequenceEditor({ contact, campaign }: SequenceEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
 
   const currentStep = sequence.find((s) => s.stepNumber === activeStep);
+  const previewContact = contacts[0];
 
   const handleSubjectChange = (value: string) => {
     setSequence((prev) =>
@@ -1223,45 +1411,51 @@ function SequenceEditor({ contact, campaign }: SequenceEditorProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Build the update payload from sequence
-      const step1 = sequence.find((s) => s.stepNumber === 1);
-      const step2 = sequence.find((s) => s.stepNumber === 2);
-      const step3 = sequence.find((s) => s.stepNumber === 3);
-
+      const [s1, s2, s3] = sequence;
       const updatePayload = {
-        email_1_subject: step1?.subject || "",
-        email_1_body: step1?.body || "",
-        email_2_subject: step2?.subject || "",
-        email_2_body: step2?.body || "",
-        email_3_subject: step3?.subject || "",
-        email_3_body: step3?.body || "",
+        email_1_template: s1?.body ?? "",
+        email_2_template: s2?.body ?? "",
+        email_3_template: s3?.body ?? "",
+        email_1_subject_template: s1?.subject?.trim() || null,
+        email_2_subject_template: s2?.subject?.trim() || null,
+        email_3_subject_template: s3?.subject?.trim() || null,
       };
-
-      const response = await fetch(`/api/outreach/contacts/${contact.id}`, {
+      const response = await fetch(`/api/outreach/campaigns/${campaign.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatePayload),
       });
-
       if (!response.ok) {
         const error = await response.json();
         throw new Error(error.error || "Failed to save");
       }
-
-      toast.success("Email sequence saved successfully");
+      const data = await response.json().catch(() => null);
+      if (data?.campaign && onCampaignUpdated) {
+        onCampaignUpdated(data.campaign as Campaign);
+      }
+      toast.success("Sequence templates saved");
     } catch (error) {
-      console.error("Error saving sequence:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save email sequence");
+      console.error("Error saving sequence templates:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save sequence templates");
     } finally {
       setIsSaving(false);
     }
   };
 
+  const variableGroups: VariableGroup[] = [
+    { label: "Sequence", items: SEQUENCE_VARIABLES },
+    { label: "Lead", items: LEAD_VARIABLES },
+  ];
+
   return (
     <div className="h-full grid grid-cols-1 md:grid-cols-[340px_1fr] gap-6 min-h-0">
-      {/* Left Sidebar - Step Cards */}
-      <div className="flex flex-col min-h-0">
-        {/* Step Cards - Scrollable container */}
+      {/* Left Sidebar */}
+      <div className="flex flex-col min-h-0 gap-3">
+        <p className="text-[11px] text-muted-foreground">
+          Campaign-wide template. Per-lead content is slotted in via tokens like
+          <code className="px-1">{`{{email_1_body}}`}</code>. Preview uses the first lead&apos;s
+          real data.
+        </p>
         <div className="space-y-2 overflow-y-auto pr-2 flex-1 min-h-0">
           {sequence.map((step) => (
             <SequenceStepCard
@@ -1278,11 +1472,6 @@ function SequenceEditor({ contact, campaign }: SequenceEditorProps) {
               }}
             />
           ))}
-
-          {/* Add Step Button - Inside scroll */}
-          <Button size="sm" variant="outline" className="w-full h-9 text-sm">
-            + Add Step
-          </Button>
         </div>
       </div>
 
@@ -1292,11 +1481,14 @@ function SequenceEditor({ contact, campaign }: SequenceEditorProps) {
           <CardContent className="p-0 flex flex-col h-full">
             {currentStep && (
               <EmailEditor
+                key={currentStep.stepNumber}
                 step={currentStep}
                 onSubjectChange={handleSubjectChange}
                 onBodyChange={handleBodyChange}
                 onSave={handleSave}
                 isSaving={isSaving}
+                variableGroups={variableGroups}
+                previewContact={previewContact}
               />
             )}
           </CardContent>
@@ -1382,13 +1574,27 @@ export default function CampaignDetailPage() {
 
   // Multi-select accounts state
   const [availableAccounts, setAvailableAccounts] = useState<
-    Array<{ id: string; email: string; name: string }>
+    Array<{
+      id: string;
+      email: string;
+      name: string;
+      signatureHtml?: string | null;
+      signaturePlainText?: string | null;
+    }>
   >([]);
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [newAccountDialogOpen, setNewAccountDialogOpen] = useState(false);
   const [newAccountEmail, setNewAccountEmail] = useState("");
   const [newAccountName, setNewAccountName] = useState("");
+  const [newAccountSignatureHtml, setNewAccountSignatureHtml] = useState("");
+  const [newAccountSignaturePlain, setNewAccountSignaturePlain] = useState("");
   const [savingNewAccount, setSavingNewAccount] = useState(false);
+
+  // Edit-signature dialog state
+  const [editSignatureAccountId, setEditSignatureAccountId] = useState<string | null>(null);
+  const [editSignatureHtml, setEditSignatureHtml] = useState("");
+  const [editSignaturePlain, setEditSignaturePlain] = useState("");
+  const [savingSignature, setSavingSignature] = useState(false);
 
   const toggleAccount = (accountId: string) => {
     const newSelection = selectedAccountIds.includes(accountId)
@@ -1437,7 +1643,12 @@ export default function CampaignDetailPage() {
       const res = await fetch("/api/outreach/sender-accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailPrefix: newAccountEmail, name: newAccountName }),
+        body: JSON.stringify({
+          emailPrefix: newAccountEmail,
+          name: newAccountName,
+          signature_html: newAccountSignatureHtml.trim() || null,
+          signature_plain_text: newAccountSignaturePlain.trim() || null,
+        }),
       });
 
       if (res.ok) {
@@ -1445,6 +1656,8 @@ export default function CampaignDetailPage() {
         setNewAccountDialogOpen(false);
         setNewAccountEmail("");
         setNewAccountName("");
+        setNewAccountSignatureHtml("");
+        setNewAccountSignaturePlain("");
         fetchSenderAccounts();
       } else {
         toast.error("Failed to add sender account");
@@ -1454,6 +1667,42 @@ export default function CampaignDetailPage() {
       toast.error("Failed to add sender account");
     } finally {
       setSavingNewAccount(false);
+    }
+  };
+
+  const openEditSignatureDialog = (accountId: string) => {
+    const account = availableAccounts.find((a) => a.id === accountId);
+    if (!account) return;
+    setEditSignatureAccountId(accountId);
+    setEditSignatureHtml(account.signatureHtml ?? "");
+    setEditSignaturePlain(account.signaturePlainText ?? "");
+  };
+
+  const handleSaveSignature = async () => {
+    if (!editSignatureAccountId) return;
+    setSavingSignature(true);
+    try {
+      const res = await fetch(`/api/outreach/sender-accounts/${editSignatureAccountId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          signature_html: editSignatureHtml.trim() || null,
+          signature_plain_text: editSignaturePlain.trim() || null,
+        }),
+      });
+      if (res.ok) {
+        toast.success("Signature saved");
+        setEditSignatureAccountId(null);
+        fetchSenderAccounts();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "Failed to save signature");
+      }
+    } catch (error) {
+      console.error("Error saving signature:", error);
+      toast.error("Failed to save signature");
+    } finally {
+      setSavingSignature(false);
     }
   };
 
@@ -3044,15 +3293,16 @@ export default function CampaignDetailPage() {
           )}
         </TabsContent>
 
-        {/* Tab 3: Sequence */}
+        {/* Tab 3: Sequence — campaign-level template editor. Each step's
+            template references per-lead AI content via {{email_N_body}} /
+            {{email_N_subject}} tokens. Preview substitutes against the first
+            lead's real values. */}
         <TabsContent value="sequence" className="flex-1 min-h-0 overflow-hidden">
-          {contacts.length === 0 ? (
-            <Card className="p-12 text-center text-muted-foreground">
-              No email sequences yet. Add contacts to view their email templates.
-            </Card>
-          ) : (
-            <SequenceEditor contact={contacts[0]} campaign={campaign} />
-          )}
+          <SequenceTemplateEditor
+            contacts={contacts}
+            campaign={campaign}
+            onCampaignUpdated={(updated) => setCampaign(updated)}
+          />
         </TabsContent>
 
         {/* Tab 4: Schedule */}
@@ -3473,13 +3723,37 @@ export default function CampaignDetailPage() {
                       {availableAccounts.map((account) => (
                         <div
                           key={account.id}
-                          className={`px-4 py-3 hover:bg-accent cursor-pointer transition-colors border-b last:border-0 ${
+                          className={`px-4 py-3 hover:bg-accent cursor-pointer transition-colors border-b last:border-0 flex items-start justify-between gap-2 ${
                             selectedAccountIds.includes(account.id) ? "bg-accent/50" : ""
                           }`}
                           onClick={() => toggleAccount(account.id)}
                         >
-                          <div className="text-sm font-medium">{account.email}</div>
-                          <div className="text-xs text-muted-foreground">{account.name}</div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium">{account.email}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {account.name}
+                              {account.signatureHtml || account.signaturePlainText ? (
+                                <span className="ml-2 text-emerald-600 dark:text-emerald-400">
+                                  • signature set
+                                </span>
+                              ) : (
+                                <span className="ml-2 text-amber-600 dark:text-amber-400">
+                                  • no signature
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 text-xs h-7"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditSignatureDialog(account.id);
+                            }}
+                          >
+                            Edit signature
+                          </Button>
                         </div>
                       ))}
                     </div>
@@ -4043,6 +4317,44 @@ export default function CampaignDetailPage() {
                 Your name as it appears to recipients
               </p>
             </div>
+            <div className="space-y-2">
+              <Label
+                htmlFor="new-signature-html"
+                className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+              >
+                Signature (HTML) — optional
+              </Label>
+              <Textarea
+                id="new-signature-html"
+                rows={5}
+                placeholder='<p>—<br>John Smith<br><a href="https://example.com">example.com</a></p>'
+                value={newAccountSignatureHtml}
+                onChange={(e) => setNewAccountSignatureHtml(e.target.value)}
+                className="font-mono text-xs bg-gray-50 border border-gray-300 shadow-sm text-gray-900 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+              />
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                Injected into emails wherever the template contains {`{{signature}}`}.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label
+                htmlFor="new-signature-plain"
+                className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+              >
+                Signature (plain text) — optional
+              </Label>
+              <Textarea
+                id="new-signature-plain"
+                rows={4}
+                placeholder={"--\nJohn Smith\nexample.com"}
+                value={newAccountSignaturePlain}
+                onChange={(e) => setNewAccountSignaturePlain(e.target.value)}
+                className="font-mono text-xs bg-gray-50 border border-gray-300 shadow-sm text-gray-900 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+              />
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                Used when sending plain-text emails. Falls back to HTML-stripped signature if blank.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -4051,6 +4363,8 @@ export default function CampaignDetailPage() {
                 setNewAccountDialogOpen(false);
                 setNewAccountEmail("");
                 setNewAccountName("");
+                setNewAccountSignatureHtml("");
+                setNewAccountSignaturePlain("");
               }}
             >
               Cancel
@@ -4066,6 +4380,76 @@ export default function CampaignDetailPage() {
                 </>
               ) : (
                 "Add Account"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Sender Signature Dialog */}
+      <Dialog
+        open={editSignatureAccountId !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditSignatureAccountId(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-[600px] bg-white dark:bg-gray-950">
+          <DialogHeader>
+            <DialogTitle className="text-gray-900 dark:text-gray-100">
+              Edit sender signature
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-400">
+              Signatures are injected wherever the campaign template contains {`{{signature}}`}.
+              HTML is sanitised at send time.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-signature-html"
+                className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+              >
+                Signature (HTML)
+              </Label>
+              <Textarea
+                id="edit-signature-html"
+                rows={6}
+                value={editSignatureHtml}
+                onChange={(e) => setEditSignatureHtml(e.target.value)}
+                className="font-mono text-xs bg-gray-50 border border-gray-300 shadow-sm text-gray-900 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label
+                htmlFor="edit-signature-plain"
+                className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+              >
+                Signature (plain text)
+              </Label>
+              <Textarea
+                id="edit-signature-plain"
+                rows={5}
+                value={editSignaturePlain}
+                onChange={(e) => setEditSignaturePlain(e.target.value)}
+                className="font-mono text-xs bg-gray-50 border border-gray-300 shadow-sm text-gray-900 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100"
+              />
+              <p className="text-xs text-gray-600 dark:text-gray-400">
+                Used for plain-text sends. Falls back to HTML-stripped signature if blank.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditSignatureAccountId(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveSignature} disabled={savingSignature}>
+              {savingSignature ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save signature"
               )}
             </Button>
           </DialogFooter>
@@ -4507,12 +4891,13 @@ export default function CampaignDetailPage() {
                       </CardContent>
                     </Card>
 
-                    {/* Section 4: Email Sequences */}
+                    {/* Section 4: Personalised Body — the AI-written paragraph
+                        slotted into the campaign template's {{email_body}} token. */}
                     <Card>
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-semibold flex items-center gap-2">
                           <Mail className="h-4 w-4" />
-                          Email Sequences
+                          Personalised Body
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">

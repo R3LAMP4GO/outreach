@@ -1,0 +1,26 @@
+{
+  "name": "pdf",
+  "description": "Coastal Programs branded PDF generator",
+  "evals": [
+    {
+      "name": "smoke-test",
+      "prompt": "Build a minimal PDF using the cover-page + section-divider + branded-table components and save it to /tmp/smoke.pdf. Use the coastal theme.",
+      "expect": [
+        "PDF file size > 200 KB (cover image embedded successfully)",
+        "First page is full-bleed Graphite → Charcoal greyscale gradient",
+        "Logo (icon-light.png) is centred and visible with its tonal shading intact",
+        "Header text 'COASTAL PROGRAMS' appears top-left from page 2 onwards"
+      ]
+    },
+    {
+      "name": "audit-report",
+      "prompt": "Convert audit-output/corrynnes/markdown.md into a branded Coastal Programs PDF. Use callout-medium for medium severity, callout-low for low, callout-info for info findings.",
+      "expect": [
+        "Cover page with title 'STACK AUDIT' and client name 'Corrynne's Natural Skincare'",
+        "TOC on page 2 matching the section dividers",
+        "Severity callouts colour-coded correctly",
+        "All findings tables wrapped in .table-container (rounded corners)"
+      ]
+    }
+  ]
+}

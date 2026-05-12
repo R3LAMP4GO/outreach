@@ -32,59 +32,6 @@ export function getThreadingHeaders(contact: Contact, emailNumber: number): Thre
 }
 
 /**
- * Get the subject line for an email, handling "Re:" prefix for threaded emails
- *
- * @param contact - Contact with email subjects
- * @param emailNumber - Which email to send (1, 2, or 3)
- * @returns Subject line
- *
- * @example
- * ```typescript
- * const subject = getEmailSubject(contact, 2)
- * // Returns "Re: Quick question" if email_2_subject is not set
- * ```
- */
-export function getEmailSubject(contact: Contact, emailNumber: number): string {
-  switch (emailNumber) {
-    case 1:
-      return contact.email_1_subject;
-
-    case 2:
-      // Use custom subject if provided, otherwise prepend "Re:" to email 1 subject
-      return contact.email_2_subject || `Re: ${contact.email_1_subject}`;
-
-    case 3:
-      return contact.email_3_subject;
-
-    default:
-      throw new Error(`Invalid email number: ${emailNumber}`);
-  }
-}
-
-/**
- * Get the email body for a specific email number
- *
- * @param contact - Contact with email bodies
- * @param emailNumber - Which email to send (1, 2, or 3)
- * @returns Email body HTML
- */
-export function getEmailBody(contact: Contact, emailNumber: number): string {
-  switch (emailNumber) {
-    case 1:
-      return contact.email_1_body;
-
-    case 2:
-      return contact.email_2_body;
-
-    case 3:
-      return contact.email_3_body;
-
-    default:
-      throw new Error(`Invalid email number: ${emailNumber}`);
-  }
-}
-
-/**
  * Check if email should be threaded
  *
  * @param emailNumber - Which email to send

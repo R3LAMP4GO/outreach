@@ -250,6 +250,26 @@ export async function PATCH(
       }
     }
 
+    // Validate sequence template fields (per-campaign email "shells" that
+    // wrap each contact's AI-personalised body). All four are optional on a
+    // PATCH; when present must be strings.
+    const templateFields = [
+      "email_1_template",
+      "email_2_template",
+      "email_3_template",
+      "email_1_subject_template",
+      "email_2_subject_template",
+      "email_3_subject_template",
+    ] as const;
+
+    for (const field of templateFields) {
+      if (updates[field] !== undefined && updates[field] !== null) {
+        if (typeof updates[field] !== "string") {
+          return Response.json({ error: `${field} must be a string` }, { status: 400 });
+        }
+      }
+    }
+
     // Validate boolean options fields
     const booleanFields = [
       "track_opens",
