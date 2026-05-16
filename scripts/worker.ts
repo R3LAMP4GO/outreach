@@ -28,6 +28,10 @@ import {
 import { getCampaign, getCampaignSchedule } from "../lib/outreach/campaigns/queries";
 import { isBusinessHour, scheduleToBusinessHours } from "../lib/outreach/scheduling/business-hours";
 import { getDeliverabilityStrategy } from "../lib/outreach/sending/deliverability";
+import { handleGenerateSeoReport } from "../lib/prospects/jobs/generate-seo-report";
+import { handleProcessQuoCall } from "../lib/prospects/jobs/process-quo-call";
+import { handlePollCapAnalytics } from "../lib/prospects/jobs/poll-cap-analytics";
+import { handleFireFollowUp } from "../lib/prospects/jobs/fire-follow-up";
 import {
   OUTREACH_BATCH_SIZE,
   OUTREACH_DEFAULT_TIMEZONE,
@@ -41,7 +45,12 @@ import type {
   PublishWorkflowPayload,
   CleanupWorkflowPayload,
 } from "../lib/newsletter/lib/queue/types";
-import type { OutreachSendEmailPayload } from "../lib/queue/index";
+import type {
+  OutreachSendEmailPayload,
+  GenerateSeoReportPayload,
+  ProcessQuoCallPayload,
+  ProspectFollowUpPayload,
+} from "../lib/queue/index";
 
 const QUEUE = {
   NEWSLETTER_SEND: "newsletter-send",
@@ -49,10 +58,21 @@ const QUEUE = {
   NEWSLETTER_PUBLISH: "newsletter-publish",
   NEWSLETTER_CLEANUP: "newsletter-cleanup",
   OUTREACH_SEND_EMAIL: "outreach-send-email",
+  GENERATE_SEO_REPORT: "generate-seo-report",
+  PROCESS_QUO_CALL: "process-quo-call",
+  PROSPECT_FOLLOW_UP: "prospect-follow-up",
+  POLL_CAP_ANALYTICS: "poll-cap-analytics",
 } as const;
+
+const SEO_REPORT_DEFAULT_CONCURRENCY = 2;
+const PROCESS_QUO_CALL_DEFAULT_CONCURRENCY = 2;
 
 const OUTREACH_PROCESS_QUEUE = "outreach-process";
 const OUTREACH_PROCESS_CRON = "*/5 * * * *";
+
+// Cap analytics polling: same 5-min cadence as outreach-process. Both are
+// in-process pg-boss schedules so no external cron service is required.
+const POLL_CAP_ANALYTICS_CRON = "*/5 * * * *";
 
 // ---------------------------------------------------------------------------
 // Bootstrap
@@ -254,6 +274,50 @@ async function handleOutreachSendEmail([
   console.log(`[worker] outreach-send-email job ${job.id} done — sent to ${contact.email}`);
 }
 
+async function handleGenerateSeoReportJob([
+  job,
+]: PgBoss.Job<GenerateSeoReportPayload>[]): Promise<void> {
+  console.log(`[worker] generate-seo-report job ${job.id} — prospect ${job.data.prospectId}`);
+  await handleGenerateSeoReport({ data: { prospectId: job.data.prospectId } });
+  console.log(`[worker] generate-seo-report job ${job.id} done`);
+}
+
+async function handleProcessQuoCallJob([job]: PgBoss.Job<ProcessQuoCallPayload>[]): Promise<void> {
+  console.log(`[worker] process-quo-call job ${job.id} — call ${job.data.callId}`);
+  await handleProcessQuoCall({
+    data: {
+      callId: job.data.callId,
+      hasSummary: job.data.hasSummary,
+      hasTranscript: job.data.hasTranscript,
+    },
+  });
+  console.log(`[worker] process-quo-call job ${job.id} done`);
+}
+
+async function handleProspectFollowUpJob([
+  job,
+]: PgBoss.Job<ProspectFollowUpPayload>[]): Promise<void> {
+  console.log(`[worker] prospect-follow-up job ${job.id} — followUp ${job.data.followUpId}`);
+  await handleFireFollowUp({ data: { followUpId: job.data.followUpId } });
+  console.log(`[worker] prospect-follow-up job ${job.id} done`);
+}
+
+async function handlePollCapAnalyticsJob([job]: PgBoss.Job<unknown>[]): Promise<void> {
+  console.log(`[worker] poll-cap-analytics job ${job.id}`);
+  try {
+    const result = await handlePollCapAnalytics();
+    console.log(
+      `[worker] poll-cap-analytics job ${job.id} done — prospects: ${result.prospectsPolled}, ` +
+        `new events: ${result.newEventsWritten}, errors: ${result.errors}`,
+    );
+  } catch (err) {
+    // The handler logs its own errors. Re-throw so pg-boss records the failure
+    // and applies the queue's retry policy (1 retry, 60s delay).
+    console.error(`[worker] poll-cap-analytics job ${job.id} failed:`, err);
+    throw err;
+  }
+}
+
 async function handleOutreachProcess(): Promise<void> {
   try {
     const result = await processDueEmails(getResend(), {
@@ -293,10 +357,59 @@ async function main() {
   await boss.work(QUEUE.NEWSLETTER_CLEANUP, opts, handleNewsletterCleanup);
   await boss.work(QUEUE.OUTREACH_SEND_EMAIL, opts, handleOutreachSendEmail);
 
+  // SEO report generation — runs an external CLI per prospect, uploads HTML
+  // to object storage, and writes a timeline event. Concurrency is bounded
+  // so a slow CLI can't starve other queues on this worker.
+  const seoConcurrencyRaw = process.env.SEO_REPORT_WORKER_CONCURRENCY;
+  const seoConcurrency =
+    seoConcurrencyRaw && Number.isFinite(Number(seoConcurrencyRaw)) && Number(seoConcurrencyRaw) > 0
+      ? Number(seoConcurrencyRaw)
+      : SEO_REPORT_DEFAULT_CONCURRENCY;
+  await boss.work(
+    QUEUE.GENERATE_SEO_REPORT,
+    { ...opts, localConcurrency: seoConcurrency },
+    handleGenerateSeoReportJob,
+  );
+  console.log(`[worker] generate-seo-report handler — concurrency: ${seoConcurrency}`);
+
+  // Quo call processing — fetches transcript + summary from Quo, runs the
+  // AI extraction via gg-ai, and updates the CRM. Same concurrency rationale
+  // as the SEO report worker: bounded so a slow Anthropic response can't
+  // starve the rest of the queue. Tunable via PROCESS_QUO_CALL_CONCURRENCY.
+  const quoConcurrencyRaw = process.env.PROCESS_QUO_CALL_CONCURRENCY;
+  const quoConcurrency =
+    quoConcurrencyRaw && Number.isFinite(Number(quoConcurrencyRaw)) && Number(quoConcurrencyRaw) > 0
+      ? Number(quoConcurrencyRaw)
+      : PROCESS_QUO_CALL_DEFAULT_CONCURRENCY;
+  await boss.work(
+    QUEUE.PROCESS_QUO_CALL,
+    { ...opts, localConcurrency: quoConcurrency },
+    handleProcessQuoCallJob,
+  );
+  console.log(`[worker] process-quo-call handler — concurrency: ${quoConcurrency}`);
+
+  // Prospect follow-up reminders — fires at the scheduled `dueAt` of a
+  // `prospect_follow_ups` row and creates a `follow_up_due` notification.
+  // Low-concurrency (default 2) is plenty: each job is two SELECTs + one
+  // INSERT, so this can't realistically saturate.
+  await boss.work(QUEUE.PROSPECT_FOLLOW_UP, opts, handleProspectFollowUpJob);
+  console.log(`[worker] prospect-follow-up handler registered`);
+
   // Recurring outreach processor — fires every 5 min in-process via pg-boss schedule.
   await boss.schedule(OUTREACH_PROCESS_QUEUE, OUTREACH_PROCESS_CRON);
   await boss.work(OUTREACH_PROCESS_QUEUE, handleOutreachProcess);
   console.log(`[worker] scheduled outreach-process every 5 min`);
+
+  // Cap analytics polling — same in-process pg-boss schedule pattern.
+  // localConcurrency: 1 so overlapping ticks queue instead of racing on the
+  // same prospect set.
+  await boss.schedule(QUEUE.POLL_CAP_ANALYTICS, POLL_CAP_ANALYTICS_CRON);
+  await boss.work(
+    QUEUE.POLL_CAP_ANALYTICS,
+    { ...opts, localConcurrency: 1 },
+    handlePollCapAnalyticsJob,
+  );
+  console.log(`[worker] scheduled poll-cap-analytics every 5 min`);
 
   console.log("[worker] all handlers registered — waiting for jobs");
 

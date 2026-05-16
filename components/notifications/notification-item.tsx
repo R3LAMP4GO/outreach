@@ -1,10 +1,33 @@
 "use client";
 
-import { IconAlertTriangle, IconBan, IconInfoCircle } from "@tabler/icons-react";
+import {
+  IconAlertTriangle,
+  IconBan,
+  IconCalendarTime,
+  IconCircleCheck,
+  IconInfoCircle,
+  IconMessage,
+} from "@tabler/icons-react";
 import { cn } from "@/components/shadcn/lib/utils";
 import { type Notification } from "@/hooks/use-notifications";
 
-function getPriorityIcon(priority: string) {
+/**
+ * Pick an icon based on notification type first (so the dropdown distinguishes
+ * SMS / follow-up / hot-lead at a glance) and fall back to priority for any
+ * generic alerts. Mirrors the shape used by `lib/crm/event-styles.ts`.
+ */
+function getNotificationIcon(type: string, priority: string) {
+  switch (type) {
+    case "sms_received":
+      return <IconMessage className="h-4 w-4 shrink-0 text-green-500" />;
+    case "follow_up_due":
+      return <IconCalendarTime className="h-4 w-4 shrink-0 text-slate-500" />;
+    case "video_engagement":
+    case "video_hot_lead":
+      // Hot-lead signal from the cap-polling job. Emerald to match the
+      // `video_completed` timeline style.
+      return <IconCircleCheck className="h-4 w-4 shrink-0 text-emerald-500" />;
+  }
   switch (priority) {
     case "CRITICAL":
       return <IconBan className="h-4 w-4 shrink-0 text-red-500" />;
@@ -32,11 +55,12 @@ function formatRelativeTime(dateString: string): string {
 }
 
 interface NotificationItemProps
-  extends Pick<Notification, "priority" | "title" | "isRead" | "createdAt"> {
+  extends Pick<Notification, "type" | "priority" | "title" | "isRead" | "createdAt"> {
   onClick?: () => void;
 }
 
 export function NotificationItem({
+  type,
   priority,
   title,
   isRead,
@@ -52,7 +76,7 @@ export function NotificationItem({
         !isRead ? "border-border bg-muted/20" : "border-border/60 bg-background",
       )}
     >
-      <div className="mt-0.5">{getPriorityIcon(priority)}</div>
+      <div className="mt-0.5">{getNotificationIcon(type, priority)}</div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span

@@ -4,6 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import {
+  IconBuildingStore,
   IconDashboard,
   IconInbox,
   IconMail,
@@ -33,6 +34,7 @@ const data = {
   navMain: [
     { title: "Dashboard", href: "/admin", icon: IconDashboard, exact: true },
     { title: "Inbox", href: "/admin/inbox", icon: IconInbox },
+    { title: "Prospecting", href: "/admin/prospecting", icon: IconBuildingStore },
     { title: "Outreach", href: "/admin/outreach", icon: IconMail },
     { title: "CRM", href: "/admin/crm", icon: IconUsers },
     { title: "Newsletter", href: "/admin/newsletter", icon: IconNews },

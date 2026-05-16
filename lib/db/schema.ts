@@ -240,18 +240,27 @@ export const contactSubmissions = pgTable("contact_submissions", {
 // ============================================================================
 // 15. contact_timeline
 // ============================================================================
-export const contactTimeline = pgTable("contact_timeline", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  contactId: uuid("contact_id").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }),
-  description: text("description"),
-  eventType: text("event_type").notNull(),
-  metadata: jsonb("metadata"),
-  oldStageId: uuid("old_stage_id"),
-  pipelineId: uuid("pipeline_id"),
-  stageId: uuid("stage_id"),
-  title: text("title").notNull(),
-});
+export const contactTimeline = pgTable(
+  "contact_timeline",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    // Either contactId OR prospectId must be set (enforced by a CHECK
+    // constraint in migration 0007). Prospect-only events fire before a
+    // prospect is promoted to a contact, so we can't require a contactId.
+    contactId: uuid("contact_id"),
+    prospectId: uuid("prospect_id"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }),
+    description: text("description"),
+    eventType: text("event_type").notNull(),
+    isRead: boolean("is_read").notNull().default(false),
+    metadata: jsonb("metadata"),
+    oldStageId: uuid("old_stage_id"),
+    pipelineId: uuid("pipeline_id"),
+    stageId: uuid("stage_id"),
+    title: text("title").notNull(),
+  },
+  (table) => [index("contact_timeline_prospect_id_idx").on(table.prospectId)],
+);
 
 // ============================================================================
 // 16. contacts
@@ -269,8 +278,10 @@ export const contacts = pgTable(
     firstTouchDate: timestamp("first_touch_date", { withTimezone: true, mode: "string" }),
     industry: text("industry"),
     isNewsletterSubscriber: boolean("is_newsletter_subscriber").notNull().default(false),
+    isPrimaryContact: boolean("is_primary_contact").notNull().default(false),
     jobTitle: text("job_title"),
     lastName: text("last_name"),
+    lastSpokeAt: timestamp("last_spoke_at", { withTimezone: true, mode: "string" }),
     lastTouchDate: timestamp("last_touch_date", { withTimezone: true, mode: "string" }),
     latestCampaignId: uuid("latest_campaign_id"),
     latestSource: text("latest_source"),
@@ -288,6 +299,8 @@ export const contacts = pgTable(
     originalUtmMedium: text("original_utm_medium"),
     originalUtmSource: text("original_utm_source"),
     phone: text("phone"),
+    prospectId: uuid("prospect_id"),
+    roleAtCompany: text("role_at_company"),
     seniority: text("seniority"),
     source: text("source").notNull(),
     sourceDetail: text("source_detail"),
@@ -298,6 +311,7 @@ export const contacts = pgTable(
   (table) => [
     index("contacts_source_idx").on(table.source),
     index("contacts_created_at_idx").on(table.createdAt),
+    index("contacts_prospect_id_idx").on(table.prospectId),
   ],
 );
 
@@ -982,3 +996,145 @@ export const testimonials = pgTable("testimonials", {
   rating: integer("rating").notNull().default(5),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
 });
+
+// ============================================================================
+// 44. prospects
+// ============================================================================
+export const prospects = pgTable(
+  "prospects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    address: text("address"),
+    assignedUserId: uuid("assigned_user_id"),
+    businessName: text("business_name").notNull(),
+    capVideoId: text("cap_video_id"),
+    capVideoUrl: text("cap_video_url"),
+    city: text("city"),
+    country: text("country"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+    googlePlaceId: text("google_place_id"),
+    industry: text("industry"),
+    lastTouchedAt: timestamp("last_touched_at", { withTimezone: true, mode: "string" }),
+    notes: text("notes"),
+    outreachStage: text("outreach_stage").notNull().default("new"),
+    phone: text("phone"),
+    seoReportError: text("seo_report_error"),
+    seoReportStatus: text("seo_report_status").notNull().default("pending"),
+    seoReportUrl: text("seo_report_url"),
+    state: text("state"),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+    website: text("website"),
+  },
+  (table) => [
+    index("prospects_outreach_stage_idx").on(table.outreachStage),
+    index("prospects_assigned_user_id_idx").on(table.assignedUserId),
+    index("prospects_created_at_idx").on(table.createdAt),
+    index("prospects_google_place_id_idx").on(table.googlePlaceId),
+  ],
+);
+
+// ============================================================================
+// 45. prospect_follow_ups
+// ============================================================================
+export const prospectFollowUps = pgTable(
+  "prospect_follow_ups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    completedAt: timestamp("completed_at", { withTimezone: true, mode: "string" }),
+    contactId: uuid("contact_id"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+    dueAt: timestamp("due_at", { withTimezone: true, mode: "string" }).notNull(),
+    pgbossJobId: uuid("pgboss_job_id"),
+    prospectId: uuid("prospect_id").notNull(),
+    reason: text("reason"),
+    source: text("source").notNull().default("ai_extracted"),
+    status: text("status").notNull().default("pending"),
+  },
+  (table) => [
+    index("prospect_follow_ups_prospect_id_idx").on(table.prospectId),
+    index("prospect_follow_ups_due_at_idx").on(table.dueAt),
+    index("prospect_follow_ups_status_idx").on(table.status),
+  ],
+);
+
+// ============================================================================
+// 46. video_engagement_events
+// ============================================================================
+export const videoEngagementEvents = pgTable(
+  "video_engagement_events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    capVideoId: text("cap_video_id").notNull(),
+    contactId: uuid("contact_id"),
+    eventType: text("event_type").notNull(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true, mode: "string" }),
+    prospectId: uuid("prospect_id"),
+    rawPayload: jsonb("raw_payload"),
+    viewerCountry: text("viewer_country"),
+    viewerIp: text("viewer_ip"),
+    watchDurationSeconds: integer("watch_duration_seconds"),
+    watchPercent: integer("watch_percent"),
+  },
+  (table) => [
+    index("video_engagement_events_prospect_id_idx").on(table.prospectId),
+    index("video_engagement_events_contact_id_idx").on(table.contactId),
+    index("video_engagement_events_cap_video_id_idx").on(table.capVideoId),
+    index("video_engagement_events_occurred_at_idx").on(table.occurredAt),
+  ],
+);
+
+// ============================================================================
+// 47. quo_webhook_events
+// ============================================================================
+//
+// Idempotency table for Quo (OpenPhone) webhook deliveries. Quo retries any
+// 5xx response, and the same event id may be delivered multiple times even on
+// success (Quo's at-least-once guarantee). The webhook handler inserts the
+// event id BEFORE dispatching downstream work; the unique PK constraint then
+// makes the second attempt a no-op via ON CONFLICT DO NOTHING.
+//
+// Pattern mirrors `outreachEmailEvents.svixId` for Resend webhooks.
+export const quoWebhookEvents = pgTable(
+  "quo_webhook_events",
+  {
+    // Event id from Quo (e.g. `EVd39d3c8d6f244d21a9131de4fc9350d0`).
+    id: text("id").primaryKey(),
+    eventType: text("event_type").notNull(),
+    receivedAt: timestamp("received_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("quo_webhook_events_received_at_idx").on(table.receivedAt)],
+);
+
+// ============================================================================
+// 48. quo_calls_processed
+// ============================================================================
+//
+// Per-call idempotency for the `process-quo-call` pg-boss job. A single call
+// generates THREE webhook events (`call.completed`, `call.summary.completed`,
+// `call.transcript.completed`), each enqueuing the same job. Once the job has
+// finished a full extraction pass (summary + transcript both ready, AI run,
+// prospect/contact upsert done), it records the callId here so subsequent
+// triggers are short-circuited.
+export const quoCallsProcessed = pgTable(
+  "quo_calls_processed",
+  {
+    callId: text("call_id").primaryKey(),
+    prospectId: uuid("prospect_id"),
+    contactId: uuid("contact_id"),
+    processedAt: timestamp("processed_at", { withTimezone: true, mode: "string" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("quo_calls_processed_prospect_id_idx").on(table.prospectId),
+    index("quo_calls_processed_processed_at_idx").on(table.processedAt),
+  ],
+);

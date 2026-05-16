@@ -72,6 +72,8 @@ pictures/
 seo-report.json
 seo-report.html
 seo-reports/
+# Worker-generated SEO report HTML (handler default outDir)
+/reports/
 
 # npm lockfile (use bun.lock instead)
 package-lock.json

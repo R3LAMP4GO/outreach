@@ -208,10 +208,28 @@ export type TimelineEventType =
   | "email_sent"
   | "email_received"
   | "note_added"
-  | "tags_updated";
+  | "tags_updated"
+  | "call_made"
+  | "call_received"
+  | "voicemail_left"
+  | "sms_sent"
+  | "sms_received"
+  | "video_viewed"
+  | "video_completed"
+  | "video_rewatched"
+  | "seo_report_generated"
+  | "seo_report_failed"
+  | "prospect_imported"
+  | "prospect_promoted"
+  | "follow_up_scheduled"
+  | "follow_up_completed";
 
 export interface TimelineEventInput {
-  contactId: string;
+  /** Contact this event belongs to. Required unless `prospectId` is set. */
+  contactId?: string;
+  /** Prospect this event belongs to. Set for prospect-only events (e.g. SEO
+   *  reports, imports) that fire before the prospect becomes a contact. */
+  prospectId?: string;
   eventType: TimelineEventType;
   title: string;
   description?: string;

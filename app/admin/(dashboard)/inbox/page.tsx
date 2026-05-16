@@ -29,6 +29,10 @@ import {
   IconChevronDown,
   IconTag,
   IconTrash,
+  IconMessage,
+  IconMessageCircle,
+  IconSend,
+  IconLayoutGrid,
 } from "@tabler/icons-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/ui/tooltip";
 import { formatDateTime } from "@/lib/utils";
@@ -119,6 +123,42 @@ interface ReplyDetail extends Reply {
 }
 
 type EmailFilter = "all" | "unread" | "archive";
+type Channel = "email" | "sms" | "all";
+
+interface SmsThread {
+  prospect_id: string;
+  prospect_name: string;
+  contact_name: string | null;
+  phone: string | null;
+  last_message_at: string;
+  last_message_preview: string;
+  last_message_direction: "in" | "out";
+  unread_count: number;
+  message_count: number;
+}
+
+interface SmsMessage {
+  id: string;
+  direction: "in" | "out";
+  body: string;
+  created_at: string | null;
+  is_read: boolean;
+}
+
+interface SmsThreadDetail {
+  thread: { prospect_id: string; prospect_name: string; phone: string | null };
+  messages: SmsMessage[];
+}
+
+const getSmsInitials = (thread: SmsThread): string => {
+  const name = thread.contact_name || thread.prospect_name;
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.substring(0, 2).toUpperCase();
+};
+
+const getSmsDisplayName = (thread: SmsThread): string =>
+  thread.contact_name || thread.prospect_name;
 
 const stripEmailPrefixes = (subject: string): string => {
   const stripped = subject.replace(/^(?:(?:re|fwd?):\s*)*/i, "").trim();
@@ -305,6 +345,16 @@ export default function OutreachInboxPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<EmailFilter>("all");
+  // Channel selector: Email keeps the current behaviour, SMS shows Quo SMS
+  // threads grouped by prospect, All interleaves both by last activity time.
+  const [channel, setChannel] = useState<Channel>("email");
+  const [smsThreads, setSmsThreads] = useState<SmsThread[]>([]);
+  const [smsLoading, setSmsLoading] = useState(false);
+  const [selectedSmsThread, setSelectedSmsThread] = useState<SmsThread | null>(null);
+  const [selectedSmsDetail, setSelectedSmsDetail] = useState<SmsThreadDetail | null>(null);
+  const [smsDetailLoading, setSmsDetailLoading] = useState(false);
+  const [smsComposerValue, setSmsComposerValue] = useState("");
+  const [smsSending, setSmsSending] = useState(false);
   // Composer is hidden by default — pops up only when Reply is clicked.
   // Resets whenever the user opens a different thread.
   const [composerOpen, setComposerOpen] = useState(false);
@@ -318,6 +368,31 @@ export default function OutreachInboxPage() {
     const timeout = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300);
     return () => clearTimeout(timeout);
   }, [searchQuery]);
+
+  // Fetch SMS threads when the SMS or All channel is active, and refetch on
+  // realtime version bumps so newly-arrived inbound SMS appear without a
+  // manual reload.
+  useEffect(() => {
+    if (channel === "email") return;
+    let cancelled = false;
+    const load = async () => {
+      setSmsLoading(true);
+      try {
+        const res = await fetch("/api/admin/inbox/sms");
+        if (!res.ok) throw new Error(`${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setSmsThreads(data.threads ?? []);
+      } catch {
+        if (!cancelled) toast.error("Failed to load SMS threads");
+      } finally {
+        if (!cancelled) setSmsLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [channel, realtimeVersion]);
 
   useEffect(() => {
     let cancelled = false;
@@ -545,6 +620,110 @@ export default function OutreachInboxPage() {
     });
   }, [replies, debouncedSearchQuery]);
 
+  const filteredSmsThreads = useMemo(() => {
+    if (!debouncedSearchQuery) return smsThreads;
+    const q = debouncedSearchQuery.toLowerCase();
+    return smsThreads.filter((t) => {
+      const name = getSmsDisplayName(t).toLowerCase();
+      const phone = (t.phone || "").toLowerCase();
+      const preview = t.last_message_preview.toLowerCase();
+      return name.includes(q) || phone.includes(q) || preview.includes(q);
+    });
+  }, [smsThreads, debouncedSearchQuery]);
+
+  const closeSmsDetail = useCallback(() => {
+    setSelectedSmsThread(null);
+    setSelectedSmsDetail(null);
+    setSmsComposerValue("");
+  }, []);
+
+  const selectSmsThread = useCallback(async (thread: SmsThread) => {
+    setSelectedSmsThread(thread);
+    setSelectedSmsDetail(null);
+    setSmsComposerValue("");
+    setSmsDetailLoading(true);
+
+    try {
+      const res = await fetch(`/api/admin/inbox/sms/${thread.prospect_id}`);
+      if (res.ok) {
+        const data: SmsThreadDetail = await res.json();
+        setSelectedSmsDetail(data);
+      }
+    } catch {
+      toast.error("Failed to load SMS thread");
+    } finally {
+      setSmsDetailLoading(false);
+    }
+
+    // Mark inbound messages as read in the background. Optimistic local clear
+    // of the unread badge so the UI updates immediately.
+    if (thread.unread_count > 0) {
+      setSmsThreads((prev) =>
+        prev.map((t) => (t.prospect_id === thread.prospect_id ? { ...t, unread_count: 0 } : t)),
+      );
+      const res = await fetch(`/api/admin/inbox/sms/${thread.prospect_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_read: true }),
+      });
+      if (!res.ok) {
+        // Rollback the optimistic clear on failure.
+        setSmsThreads((prev) =>
+          prev.map((t) =>
+            t.prospect_id === thread.prospect_id ? { ...t, unread_count: thread.unread_count } : t,
+          ),
+        );
+      }
+    }
+  }, []);
+
+  const sendSms = useCallback(async () => {
+    if (!selectedSmsThread) return;
+    const content = smsComposerValue.trim();
+    if (!content) return;
+    setSmsSending(true);
+    try {
+      const res = await fetch(`/api/admin/prospects/${selectedSmsThread.prospect_id}/sms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data?.error || "Failed to send SMS");
+        return;
+      }
+      setSmsComposerValue("");
+      toast.success("SMS sent");
+      // Refetch the thread to show the new message; cheap enough at this scale.
+      const refetch = await fetch(`/api/admin/inbox/sms/${selectedSmsThread.prospect_id}`);
+      if (refetch.ok) {
+        const fresh: SmsThreadDetail = await refetch.json();
+        setSelectedSmsDetail(fresh);
+      }
+      // Bump the list-level last_message_at so the thread moves to the top.
+      setSmsThreads((prev) => {
+        const now = new Date().toISOString();
+        const next = prev.map((t) =>
+          t.prospect_id === selectedSmsThread.prospect_id
+            ? {
+                ...t,
+                last_message_at: now,
+                last_message_preview: content,
+                last_message_direction: "out" as const,
+                message_count: t.message_count + 1,
+              }
+            : t,
+        );
+        return next.sort(
+          (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime(),
+        );
+      });
+    } finally {
+      setSmsSending(false);
+    }
+  }, [selectedSmsThread, smsComposerValue]);
+
   const handleReplySent = useCallback(
     (replyId: string, sentAt: string, body: string, senderEmail: string) => {
       const patch = { reply_sent_at: sentAt, reply_body: body, reply_sender_email: senderEmail };
@@ -614,43 +793,102 @@ export default function OutreachInboxPage() {
   return (
     <div className="flex flex-col h-full w-full bg-background">
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b">
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as EmailFilter)}>
-          <TabsList>
-            <TabsTrigger value="all" className="gap-1.5">
-              <IconInbox className="w-4 h-4" />
-              All Mail
-            </TabsTrigger>
-            <TabsTrigger value="unread" className="gap-1.5">
-              <IconMailOpened className="w-4 h-4" />
-              Unread
-            </TabsTrigger>
-            <TabsTrigger value="archive" className="gap-1.5">
-              <IconArchive className="w-4 h-4" />
-              Archive
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <div className="flex flex-col gap-2 px-4 py-3 border-b">
+        <div className="flex items-center gap-3">
+          {/* Channel selector — Email is the default to preserve the current
+              behaviour; SMS and All are additive views. */}
+          <Tabs value={channel} onValueChange={(v) => setChannel(v as Channel)}>
+            <TabsList>
+              <TabsTrigger value="email" className="gap-1.5">
+                <IconMail className="w-4 h-4" />
+                Email
+              </TabsTrigger>
+              <TabsTrigger value="sms" className="gap-1.5">
+                <IconMessageCircle className="w-4 h-4" />
+                SMS
+              </TabsTrigger>
+              <TabsTrigger value="all" className="gap-1.5">
+                <IconLayoutGrid className="w-4 h-4" />
+                All
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-        <div className="relative flex-1 max-w-sm">
-          <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search emails..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9"
-          />
+          <div className="relative flex-1 max-w-sm">
+            <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder={
+                channel === "sms"
+                  ? "Search SMS..."
+                  : channel === "all"
+                    ? "Search inbox..."
+                    : "Search emails..."
+              }
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <Button variant="ghost" size="sm" className="h-9 w-9 p-0 ml-auto">
+            <IconDots className="w-5 h-5" />
+          </Button>
         </div>
 
-        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 ml-auto">
-          <IconDots className="w-5 h-5" />
-        </Button>
+        {/* Email-only filters: All Mail / Unread / Archive only make sense in the
+            email channel; SMS doesn't have an archive concept yet. */}
+        {channel === "email" && (
+          <Tabs value={filter} onValueChange={(v) => setFilter(v as EmailFilter)}>
+            <TabsList>
+              <TabsTrigger value="all" className="gap-1.5">
+                <IconInbox className="w-4 h-4" />
+                All Mail
+              </TabsTrigger>
+              <TabsTrigger value="unread" className="gap-1.5">
+                <IconMailOpened className="w-4 h-4" />
+                Unread
+              </TabsTrigger>
+              <TabsTrigger value="archive" className="gap-1.5">
+                <IconArchive className="w-4 h-4" />
+                Archive
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
       </div>
 
-      {/* Email list */}
+      {/* Channel-aware list */}
       <div className="flex-1 overflow-y-auto">
-        {filteredReplies.length === 0 ? (
+        {channel !== "email" && smsLoading ? (
+          <div className="p-6 space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-14 w-full" />
+            ))}
+          </div>
+        ) : channel === "sms" ? (
+          filteredSmsThreads.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center py-24">
+              <IconMessageCircle className="w-12 h-12 text-muted-foreground mb-3 opacity-40" />
+              <p className="text-sm text-muted-foreground">No SMS threads yet</p>
+            </div>
+          ) : (
+            <SmsThreadList
+              threads={filteredSmsThreads}
+              selectedId={selectedSmsThread?.prospect_id ?? null}
+              onSelect={selectSmsThread}
+            />
+          )
+        ) : channel === "all" ? (
+          <UnifiedInboxList
+            replies={filteredReplies}
+            threads={filteredSmsThreads}
+            selectedEmailId={selectedReply?.id ?? null}
+            selectedSmsId={selectedSmsThread?.prospect_id ?? null}
+            onSelectEmail={selectReply}
+            onSelectSms={selectSmsThread}
+          />
+        ) : filteredReplies.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-24">
             <IconMail className="w-12 h-12 text-muted-foreground mb-3 opacity-40" />
             <p className="text-sm text-muted-foreground">No emails found</p>
@@ -1040,6 +1278,330 @@ export default function OutreachInboxPage() {
             })()}
         </SheetContent>
       </Sheet>
+
+      {/* SMS thread detail — mirrors the email Sheet, with a Quo-backed composer
+          at the bottom that POSTs to /api/admin/prospects/[id]/sms. */}
+      <Sheet
+        open={!!selectedSmsThread}
+        onOpenChange={(open) => {
+          if (!open) closeSmsDetail();
+        }}
+      >
+        <SheetContent
+          hideClose
+          side="right"
+          className="w-full sm:w-[680px] sm:max-w-none p-0 flex flex-col gap-0"
+        >
+          <VisuallyHidden>
+            <SheetTitle>SMS Thread</SheetTitle>
+          </VisuallyHidden>
+          {selectedSmsThread && (
+            <>
+              <div className="flex items-center justify-between px-3 py-2 border-b">
+                <div className="flex items-center gap-2 min-w-0">
+                  <button
+                    type="button"
+                    onClick={closeSmsDetail}
+                    aria-label="Close thread"
+                    className="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  >
+                    <IconChevronsRight className="w-[18px] h-[18px]" stroke={2.25} />
+                  </button>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">
+                      {getSmsDisplayName(selectedSmsThread)}
+                    </p>
+                    {selectedSmsThread.phone && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {selectedSmsThread.phone}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-8 space-y-2">
+                {smsDetailLoading ? (
+                  <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
+                    <IconLoader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">Loading…</span>
+                  </div>
+                ) : !selectedSmsDetail || selectedSmsDetail.messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
+                    <IconMessage className="w-10 h-10 text-muted-foreground opacity-40" />
+                    <p className="text-sm text-muted-foreground">
+                      No messages yet — send one to start the conversation.
+                    </p>
+                  </div>
+                ) : (
+                  selectedSmsDetail.messages.map((msg) => <SmsBubble key={msg.id} message={msg} />)
+                )}
+              </div>
+
+              <div data-sms-composer className="border-t bg-background px-4 py-3 sm:px-8">
+                <div className="flex items-end gap-2">
+                  <textarea
+                    rows={2}
+                    value={smsComposerValue}
+                    onChange={(e) => setSmsComposerValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        void sendSms();
+                      }
+                    }}
+                    placeholder={
+                      selectedSmsThread.phone
+                        ? "Type a message… (⌘/Ctrl+Enter to send)"
+                        : "Prospect has no phone on file"
+                    }
+                    disabled={!selectedSmsThread.phone || smsSending}
+                    className="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => void sendSms()}
+                    disabled={
+                      !selectedSmsThread.phone || smsSending || smsComposerValue.trim().length === 0
+                    }
+                    className="gap-1.5"
+                  >
+                    {smsSending ? (
+                      <IconLoader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <IconSend className="w-4 h-4" />
+                    )}
+                    Send
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sub-components (kept in-file to mirror the existing inbox layout idiom).
+// ---------------------------------------------------------------------------
+
+function SmsThreadList({
+  threads,
+  selectedId,
+  onSelect,
+}: {
+  threads: SmsThread[];
+  selectedId: string | null;
+  onSelect: (thread: SmsThread) => void;
+}) {
+  return (
+    <div>
+      {threads.map((thread) => (
+        <div
+          key={thread.prospect_id}
+          onClick={() => onSelect(thread)}
+          className={`flex items-center gap-4 px-4 py-2 cursor-pointer hover:bg-muted/40 transition-colors ${
+            selectedId === thread.prospect_id ? "bg-muted/50" : ""
+          }`}
+        >
+          <div
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${thread.unread_count > 0 ? "bg-blue-500" : "opacity-0"}`}
+          />
+          <div className="w-2 h-2 rounded-full flex-shrink-0 opacity-0" />
+          <Avatar className="w-8 h-8 flex-shrink-0">
+            <AvatarFallback className="text-xs">{getSmsInitials(thread)}</AvatarFallback>
+          </Avatar>
+          <span
+            className={`text-sm flex-shrink-0 w-36 truncate ${thread.unread_count > 0 ? "font-semibold text-foreground" : "font-normal text-foreground"}`}
+          >
+            {getSmsDisplayName(thread)}
+            {thread.message_count > 1 && (
+              <span className="ml-1 text-xs text-muted-foreground">({thread.message_count})</span>
+            )}
+          </span>
+          <div className="flex-1 min-w-0 truncate">
+            <span
+              className={`text-sm text-foreground ${thread.unread_count > 0 ? "font-medium" : "font-normal"}`}
+            >
+              {thread.last_message_direction === "out" && (
+                <span className="text-muted-foreground mr-1">You:</span>
+              )}
+              {thread.last_message_preview || "(empty message)"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {thread.unread_count > 0 && (
+              <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">
+                {thread.unread_count} new
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {formatDateTime(thread.last_message_at)}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SmsBubble({ message }: { message: SmsMessage }) {
+  const outbound = message.direction === "out";
+  return (
+    <div className={`flex ${outbound ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap break-words ${
+          outbound ? "bg-blue-500 text-white" : "bg-muted text-foreground"
+        }`}
+      >
+        <p>{message.body || "(empty message)"}</p>
+        <p className={`text-[10px] mt-1 ${outbound ? "text-blue-100" : "text-muted-foreground"}`}>
+          {message.created_at ? formatDateTime(message.created_at) : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+interface UnifiedRow {
+  kind: "email" | "sms";
+  id: string;
+  at: string;
+  email?: Reply;
+  sms?: SmsThread;
+}
+
+function UnifiedInboxList({
+  replies,
+  threads,
+  selectedEmailId,
+  selectedSmsId,
+  onSelectEmail,
+  onSelectSms,
+}: {
+  replies: Reply[];
+  threads: SmsThread[];
+  selectedEmailId: string | null;
+  selectedSmsId: string | null;
+  onSelectEmail: (reply: Reply) => void;
+  onSelectSms: (thread: SmsThread) => void;
+}) {
+  const rows: UnifiedRow[] = [
+    ...replies.map<UnifiedRow>((r) => ({
+      kind: "email",
+      id: `email-${r.id}`,
+      at: r.received_at,
+      email: r,
+    })),
+    ...threads.map<UnifiedRow>((t) => ({
+      kind: "sms",
+      id: `sms-${t.prospect_id}`,
+      at: t.last_message_at,
+      sms: t,
+    })),
+  ].sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+
+  if (rows.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center py-24">
+        <IconInbox className="w-12 h-12 text-muted-foreground mb-3 opacity-40" />
+        <p className="text-sm text-muted-foreground">No messages yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {rows.map((row) => {
+        if (row.kind === "email" && row.email) {
+          const reply = row.email;
+          const isSelected = selectedEmailId === reply.id;
+          return (
+            <div
+              key={row.id}
+              onClick={() => onSelectEmail(reply)}
+              className={`flex items-center gap-4 px-4 py-2 cursor-pointer hover:bg-muted/40 transition-colors ${
+                isSelected ? "bg-muted/50" : ""
+              }`}
+            >
+              <div
+                className={`w-2 h-2 rounded-full flex-shrink-0 ${reply.unread_count > 0 ? "bg-blue-500" : "opacity-0"}`}
+              />
+              <span
+                className="inline-flex items-center justify-center w-5 h-5 rounded text-muted-foreground"
+                title="Email"
+              >
+                <IconMail className="w-3.5 h-3.5" />
+              </span>
+              <Avatar className="w-8 h-8 flex-shrink-0">
+                <AvatarFallback className="text-xs">{getInitials(reply)}</AvatarFallback>
+              </Avatar>
+              <span
+                className={`text-sm flex-shrink-0 w-36 truncate ${reply.unread_count > 0 ? "font-semibold text-foreground" : "font-normal text-foreground"}`}
+              >
+                {getReplyName(reply)}
+              </span>
+              <div className="flex-1 min-w-0 truncate">
+                <span
+                  className={`text-sm text-foreground ${reply.unread_count > 0 ? "font-medium" : "font-normal"}`}
+                >
+                  {reply.subject || "(no subject)"}
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground flex-shrink-0">
+                {formatDateTime(reply.received_at)}
+              </span>
+            </div>
+          );
+        }
+        if (row.kind === "sms" && row.sms) {
+          const thread = row.sms;
+          const isSelected = selectedSmsId === thread.prospect_id;
+          return (
+            <div
+              key={row.id}
+              onClick={() => onSelectSms(thread)}
+              className={`flex items-center gap-4 px-4 py-2 cursor-pointer hover:bg-muted/40 transition-colors ${
+                isSelected ? "bg-muted/50" : ""
+              }`}
+            >
+              <div
+                className={`w-2 h-2 rounded-full flex-shrink-0 ${thread.unread_count > 0 ? "bg-blue-500" : "opacity-0"}`}
+              />
+              <span
+                className="inline-flex items-center justify-center w-5 h-5 rounded text-muted-foreground"
+                title="SMS"
+              >
+                <IconMessageCircle className="w-3.5 h-3.5" />
+              </span>
+              <Avatar className="w-8 h-8 flex-shrink-0">
+                <AvatarFallback className="text-xs">{getSmsInitials(thread)}</AvatarFallback>
+              </Avatar>
+              <span
+                className={`text-sm flex-shrink-0 w-36 truncate ${thread.unread_count > 0 ? "font-semibold text-foreground" : "font-normal text-foreground"}`}
+              >
+                {getSmsDisplayName(thread)}
+              </span>
+              <div className="flex-1 min-w-0 truncate">
+                <span
+                  className={`text-sm text-foreground ${thread.unread_count > 0 ? "font-medium" : "font-normal"}`}
+                >
+                  {thread.last_message_direction === "out" && (
+                    <span className="text-muted-foreground mr-1">You:</span>
+                  )}
+                  {thread.last_message_preview || "(empty message)"}
+                </span>
+              </div>
+              <span className="text-xs text-muted-foreground flex-shrink-0">
+                {formatDateTime(thread.last_message_at)}
+              </span>
+            </div>
+          );
+        }
+        return null;
+      })}
     </div>
   );
 }

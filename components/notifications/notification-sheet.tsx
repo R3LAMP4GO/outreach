@@ -121,6 +121,7 @@ export function NotificationSheet({
                     {group.items.map((n) => (
                       <NotificationItem
                         key={n.id}
+                        type={n.type}
                         priority={n.priority}
                         title={n.title}
                         isRead={n.isRead}

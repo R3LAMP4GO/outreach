@@ -65,6 +65,17 @@ rm -rf .next && bun run dev
 - Email addresses: `process.env.DEFAULT_FROM_EMAIL`, `process.env.NEWSLETTER_FROM_EMAIL`
 - All credentials configured via environment variables (no database storage)
 
+### Prospecting Pipeline
+
+Pre-CRM funnel that turns CSV-imported businesses into tracked outbound calls + follow-ups. Full operator guide: `docs/prospecting.md`.
+
+- **Pre-CRM entity is `prospects`, NOT `contacts`.** `contacts.email` is `NOT NULL`; prospects exist before an email is captured. Create a contact only when the AI extraction (or admin) actually has an email.
+- **`prospects` → 1:N `contacts` via `contacts.prospectId`.** A prospect promotes into one or more contacts as people are identified on calls. Don't delete the prospect when promoting — the prospect is the durable funnel entity; the contact is the person.
+- **Call / SMS always go through `lib/quo/client.ts`.** Never call the OpenPhone REST API directly from a route or job — the client handles the no-`Bearer` auth header quirk, error shapes, and the `QUO_API_BASE` override. Tests mock this single seam.
+- **AI extraction goes through `lib/ai/gg-client.ts`.** New code must use the gg-ai wrapper, not `@anthropic-ai/sdk` directly. This keeps the model id, retries, and structured-output shape in one place, and means swapping providers is a one-file change.
+- **Cap video analytics are polled via cron, NOT webhooks.** Cap doesn't ship a stable webhook API yet (see `lib/cap/README.md`). The canonical schedule is the pg-boss `boss.schedule(POLL_CAP_ANALYTICS, '*/5 * * * *')` in `scripts/worker.ts`; `/api/cron/poll-cap-analytics` exists for manual triggers only. When Cap publishes webhooks, the polling handler is the contract — swap the trigger, not the downstream code.
+- **Follow-ups are pg-boss scheduled jobs.** A `prospect_follow_ups` row is the source of truth; the queue entry is the scheduling primitive. To cancel a follow-up, call `cancelProspectFollowUp(pgbossJobId)` from `lib/queue/index.ts` — deleting the row alone leaves a ghost job that fires a stale notification at `dueAt`.
+
 ### Components
 - **Named exports only** - No default exports
 - **Animations** - ALL defined in `app/globals.css` with `@keyframes`, never inline

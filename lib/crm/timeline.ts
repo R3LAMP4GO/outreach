@@ -23,9 +23,16 @@ export async function writeTimelineEvent(
   maybeEvent?: TimelineEventInput,
 ): Promise<void> {
   const event = maybeEvent ?? (eventOrClient as TimelineEventInput);
+  if (!event.contactId && !event.prospectId) {
+    logger.error("writeTimelineEvent: must set contactId or prospectId", {
+      eventType: event.eventType,
+    });
+    return;
+  }
   try {
     await db.insert(contactTimeline).values({
-      contactId: event.contactId,
+      contactId: event.contactId ?? null,
+      prospectId: event.prospectId ?? null,
       eventType: event.eventType,
       title: event.title,
       description: event.description ?? null,
@@ -38,6 +45,7 @@ export async function writeTimelineEvent(
     logger.error("Failed to write timeline event:", {
       eventType: event.eventType,
       contactId: event.contactId,
+      prospectId: event.prospectId,
       error: err instanceof Error ? err.message : String(err),
     });
   }
@@ -56,9 +64,18 @@ export async function writeTimelineEvents(
   const events = maybeEvents ?? (eventsOrClient as TimelineEventInput[]);
   if (events.length === 0) return;
 
+  const valid = events.filter((e) => e.contactId || e.prospectId);
+  if (valid.length < events.length) {
+    logger.error("writeTimelineEvents: skipping rows missing contactId/prospectId", {
+      skipped: events.length - valid.length,
+    });
+  }
+  if (valid.length === 0) return;
+
   try {
-    const rows = events.map((event) => ({
-      contactId: event.contactId,
+    const rows = valid.map((event) => ({
+      contactId: event.contactId ?? null,
+      prospectId: event.prospectId ?? null,
       eventType: event.eventType,
       title: event.title,
       description: event.description ?? null,
@@ -71,7 +88,7 @@ export async function writeTimelineEvents(
     await db.insert(contactTimeline).values(rows);
   } catch (err) {
     logger.error("Failed to write timeline events batch:", {
-      count: events.length,
+      count: valid.length,
       error: err instanceof Error ? err.message : String(err),
     });
   }

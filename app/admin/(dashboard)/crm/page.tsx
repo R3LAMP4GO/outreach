@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { IconLoader2 } from "@tabler/icons-react";
 import { getCrmMetrics } from "@/lib/crm/metrics";
 import { getActivityFeed } from "@/lib/crm/activity-feed";
+import { AddDealLauncher } from "@/components/crm/AddDealLauncher";
 import { CRMDashboardCharts } from "./crm-dashboard-charts";
 
 function CRMDashboardSkeleton() {
@@ -27,8 +28,14 @@ async function CRMDashboardData() {
 
 export default function CRMDashboardPage() {
   return (
-    <Suspense fallback={<CRMDashboardSkeleton />}>
-      <CRMDashboardData />
-    </Suspense>
+    <>
+      <Suspense fallback={<CRMDashboardSkeleton />}>
+        <CRMDashboardData />
+      </Suspense>
+      {/* Mount the query-param-driven dialog launcher last so it doesn't
+          block the dashboard's initial paint. Renders null until a `?new=`
+          param is present. */}
+      <AddDealLauncher />
+    </>
   );
 }

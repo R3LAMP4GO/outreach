@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { AddDealDialog } from "./AddDealDialog";
 import { DealColumn } from "./DealColumn";
 import { Card, CardContent } from "@/components/shadcn/ui/card";
 import { Button } from "@/components/shadcn/ui/button";
@@ -57,6 +58,8 @@ export function PipelineKanban({ onDealClick }: PipelineKanbanProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedPipeline, setSelectedPipeline] = useState("sales-pipeline");
   const [activeDeal, setActiveDeal] = useState<Deal | null>(null);
+  const [addDealStageSlug, setAddDealStageSlug] = useState<string | undefined>(undefined);
+  const [addDealOpen, setAddDealOpen] = useState(false);
 
   // Split mouse vs. touch sensors so horizontal swipe on mobile scrolls the kanban
   // instead of triggering a drag. Touch requires a long-press (250ms) to start a drag,
@@ -175,8 +178,8 @@ export function PipelineKanban({ onDealClick }: PipelineKanbanProps) {
   };
 
   const handleAddDeal = (stageSlug: string) => {
-    // TODO: Implement add deal modal
-    console.log("Add deal to stage:", stageSlug);
+    setAddDealStageSlug(stageSlug);
+    setAddDealOpen(true);
   };
 
   if (loading) {
@@ -290,6 +293,17 @@ export function PipelineKanban({ onDealClick }: PipelineKanbanProps) {
           );
         })}
       </div>
+
+      <AddDealDialog
+        open={addDealOpen}
+        onOpenChange={setAddDealOpen}
+        defaultStageSlug={addDealStageSlug}
+        pipelineSlug={selectedPipeline}
+        onCreated={() => {
+          // Refetch so the new deal lands in its column without a hard reload.
+          void fetchDeals();
+        }}
+      />
     </div>
   );
 }

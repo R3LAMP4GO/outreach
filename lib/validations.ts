@@ -85,6 +85,18 @@ export const updateSettingsSchema = z.object({
 // CRM Schemas
 // ============================================================================
 
+export const dealCreateSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  contact_id: z.string().uuid("Invalid contact id"),
+  stage_slug: z.string().min(1, "Stage is required").max(100),
+  pipeline_slug: z.string().min(1).max(100).default("sales-pipeline"),
+  amount: z.number().min(0).optional().nullable(),
+  probability: z.number().int().min(0).max(100).optional().nullable(),
+  source: z.string().min(1).max(100).default("manual"),
+  notes: z.string().max(2000).optional().nullable(),
+  expected_close_date: z.string().datetime().optional().nullable(),
+});
+
 export const dealUpdateSchema = z.object({
   stage_id: z.string().uuid().optional(),
   name: z.string().min(1).max(200).optional(),

@@ -970,6 +970,22 @@ body {
   will-change: height;
 }
 
+/* Prospecting: SEO report "generating" status pulse */
+@keyframes status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.animate-status-pulse {
+  animation: status-pulse 1.6s ease-in-out infinite;
+  will-change: opacity;
+}
+
 /* Newsletter Artifact Slide-in Animation */
 .artifact-slide-in {
   animation: slide-in-from-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);

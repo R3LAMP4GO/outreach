@@ -22,6 +22,7 @@
 | Admin Dashboard | Auth (TOTP), users, settings, integrations |
 | Object Storage | S3-compatible storage (MinIO local / Tigris in prod) |
 | Webhooks | Cal.com booking + Resend email events |
+| Prospecting | CSV import → CLI-generated SEO/AEO reports → Quo calls/SMS → AI call extraction → Cap viewer tracking → scheduled follow-ups |
 
 ---
 
@@ -46,6 +47,7 @@ Prerequisites: Bun, Docker (for local MinIO).
 ```bash
 bun install
 cp .env.example .env.local                 # fill in DATABASE_URL, AUTH_SECRET, RESEND_API_KEY, BUCKET_*
+                                           # optional integrations: see docs/prospecting.md
 docker compose up -d minio                 # local S3-compatible storage
 bunx drizzle-kit migrate
 bun run dev                                # http://localhost:3500 → redirects to /admin
@@ -125,6 +127,9 @@ For Tigris bucket setup and env var wiring, see `.env.example`.
 - **Components**: Named exports only. Animations live in `app/globals.css` as `@keyframes`, never inline.
 
 See `CLAUDE.md` for full conventions and locked patterns (Cal.com webhook URL, outreach Reply-To, AI voice rules).
+
+For the prospect SEO/AEO report worker (env vars, CLI contract, local stub),
+see `docs/seo-reports.md`.
 
 ---
 

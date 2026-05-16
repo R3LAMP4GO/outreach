@@ -541,6 +541,110 @@ export async function updateDeal(
 }
 
 /**
+ * Create a deal manually (from the admin UI). Looks up the stage by slug
+ * within the given pipeline, verifies the contact exists, inserts the deal,
+ * writes a `deal_created` timeline event against the contact, and returns the
+ * new deal id. Throws CrmError(404) for unknown pipeline/stage/contact and
+ * CrmError(500) for DB failures.
+ */
+export interface CreateDealInput {
+  name: string;
+  contactId: string;
+  stageSlug: string;
+  pipelineSlug?: string;
+  amount?: number | null;
+  probability?: number | null;
+  source?: string;
+  notes?: string | null;
+  expectedCloseDate?: string | null;
+}
+
+export async function createDeal(input: CreateDealInput): Promise<{ id: string; stageId: string }> {
+  const pipelineSlug = input.pipelineSlug ?? "sales-pipeline";
+  const source = input.source ?? "manual";
+
+  // 1. Resolve pipeline
+  const [pipeline] = await db
+    .select({ id: pipelines.id })
+    .from(pipelines)
+    .where(eq(pipelines.slug, pipelineSlug))
+    .limit(1);
+  if (!pipeline) {
+    throw new CrmError(`Pipeline not found: ${pipelineSlug}`, 404);
+  }
+
+  // 2. Resolve stage within that pipeline (slug is only unique per-pipeline
+  //    in practice, so we filter by both for safety)
+  const [stage] = await db
+    .select({ id: stages.id })
+    .from(stages)
+    .where(and(eq(stages.slug, input.stageSlug), eq(stages.pipelineId, pipeline.id)))
+    .limit(1);
+  if (!stage) {
+    throw new CrmError(`Stage not found in pipeline: ${input.stageSlug}`, 404);
+  }
+
+  // 3. Verify contact exists (FK is NOT NULL — let the DB fail otherwise
+  //    but a friendly 404 is nicer for the dialog)
+  const [contact] = await db
+    .select({ id: contacts.id })
+    .from(contacts)
+    .where(eq(contacts.id, input.contactId))
+    .limit(1);
+  if (!contact) {
+    throw new CrmError("Contact not found", 404);
+  }
+
+  // 4. Insert the deal
+  const now = new Date().toISOString();
+  let inserted: { id: string } | undefined;
+  try {
+    [inserted] = await db
+      .insert(deals)
+      .values({
+        name: input.name.trim(),
+        contactId: input.contactId,
+        stageId: stage.id,
+        source,
+        amount: input.amount ?? null,
+        probability: input.probability ?? null,
+        notes: input.notes ?? null,
+        expectedCloseDate: input.expectedCloseDate ?? null,
+        status: "open",
+        createdAt: now,
+        updatedAt: now,
+        stageEnteredAt: now,
+      })
+      .returning({ id: deals.id });
+  } catch (err) {
+    logger.error("Failed to insert deal:", err);
+    throw new CrmError("Failed to create deal", 500);
+  }
+  if (!inserted) {
+    throw new CrmError("Failed to create deal", 500);
+  }
+
+  // 5. Timeline event (non-throwing — failure logs but doesn't roll back
+  //    the deal insert)
+  await writeTimelineEvent({
+    contactId: input.contactId,
+    eventType: "deal_created",
+    title: `Deal created: ${input.name.trim()}`,
+    metadata: {
+      dealId: inserted.id,
+      pipelineSlug,
+      stageSlug: input.stageSlug,
+      source,
+      amount: input.amount ?? null,
+    },
+    pipelineId: pipeline.id,
+    stageId: stage.id,
+  });
+
+  return { id: inserted.id, stageId: stage.id };
+}
+
+/**
  * Delete a deal by ID with stage history cleanup
  */
 export async function deleteDeal(id: string): Promise<{ message: string }> {
