@@ -1,11 +1,11 @@
 import { describe, test, expect } from "vitest";
 import { extractCallData } from "../gg-client";
 
-const hasApiKey = Boolean(process.env.ANTHROPIC_API_KEY);
+const hasApiKey = Boolean(process.env.OPENAI_API_KEY);
 
 /**
- * Live integration test. Hits the real Anthropic API via gg-ai.
- * Skipped when ANTHROPIC_API_KEY is not in the environment.
+ * Live integration test. Hits the real OpenAI API via gg-ai.
+ * Skipped when OPENAI_API_KEY is not in the environment.
  */
 describe("extractCallData()", () => {
   test.skipIf(!hasApiKey)(

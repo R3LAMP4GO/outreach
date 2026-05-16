@@ -103,12 +103,12 @@ Run these in order on a fresh machine (or fresh Railway project).
 ### 1. Set env vars
 
 Copy `.env.example` → `.env.local` and fill the `# === Prospecting / Outreach
-Integrations ===` section, plus `ANTHROPIC_API_KEY` (under `INTEGRATIONS &
+Integrations ===` section, plus `OPENAI_API_KEY` (under `INTEGRATIONS &
 API KEYS`) and `CRON_SECRET` (under `OPTIONAL FEATURES → Cron Jobs`).
 
 Required for the full loop:
 
-- `ANTHROPIC_API_KEY` — call extraction (also used by newsletter generation)
+- `OPENAI_API_KEY` — call extraction (also used by newsletter generation and reply analysis)
 - `SEO_REPORT_CLI_CMD`, `SEO_REPORT_OUT_DIR`, `SEO_REPORT_TIMEOUT_MS`,
   `SEO_REPORT_WORKER_CONCURRENCY`
 - `QUO_API_KEY`, `QUO_WEBHOOK_SECRET`, `QUO_PHONE_NUMBER`

@@ -3,16 +3,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // ---------------------------------------------------------------------------
 // Hoist mock functions so vi.mock() factories can reference them
 // ---------------------------------------------------------------------------
-const { mockGenerateObject, mockAnthropicModel } = vi.hoisted(() => ({
+const { mockGenerateObject, mockOpenAIModel } = vi.hoisted(() => ({
   mockGenerateObject: vi.fn(),
-  mockAnthropicModel: vi.fn().mockReturnValue({ id: "mock-model" }),
+  mockOpenAIModel: vi.fn().mockReturnValue({ id: "mock-model" }),
 }));
 
 // ---------------------------------------------------------------------------
 // Mock the Vercel AI SDK modules so no real API calls are made
 // ---------------------------------------------------------------------------
 vi.mock("ai", () => ({ generateObject: mockGenerateObject }));
-vi.mock("@ai-sdk/anthropic", () => ({ anthropic: mockAnthropicModel }));
+vi.mock("@ai-sdk/openai", () => ({ openai: mockOpenAIModel }));
 vi.mock("@/lib/logger", () => ({
   logger: { error: vi.fn(), info: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
@@ -191,10 +191,10 @@ describe("analyzeReply()", () => {
     expect(prompt).not.toContain(" at ");
   });
 
-  it("uses the claude-sonnet-4-6 model", async () => {
+  it("uses the gpt-4.1 model", async () => {
     await analyzeReply("Jane", "Corp", "Campaign", "reply", null, null, null, "Jake");
 
-    expect(mockAnthropicModel).toHaveBeenCalledWith("claude-sonnet-4-6");
+    expect(mockOpenAIModel).toHaveBeenCalledWith("gpt-4.1");
   });
 
   it("includes original subject in the prompt when provided", async () => {

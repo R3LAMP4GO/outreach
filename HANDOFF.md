@@ -79,7 +79,7 @@ copy it, then fill in real values for the ones you need.
 
 | Var | Where to get it |
 |---|---|
-| `ANTHROPIC_API_KEY` | https://console.anthropic.com |
+| `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
 
 ### Webhook secrets (generate fresh ones)
 
@@ -275,7 +275,7 @@ you don't have to copy/paste secrets.
 | `AUTH_COOKIE_DOMAIN` | `.yourdomain.com` (only if you have subdomains; otherwise leave unset) |
 | `RESEND_API_KEY` | From resend.com |
 | `RESEND_WEBHOOK_SECRET` | From Resend webhook config |
-| `ANTHROPIC_API_KEY` | From console.anthropic.com |
+| `OPENAI_API_KEY` | From platform.openai.com/api-keys |
 | `DEFAULT_FROM_EMAIL` | `hello@email.yourdomain.com` (verified in Resend) |
 | `NEWSLETTER_FROM_EMAIL` | `newsletter@email.yourdomain.com` |
 | `CAL_WEBHOOK_SECRET` | From Cal.com webhook config (if used) |
@@ -302,7 +302,7 @@ running jobs. Minimum set:
 | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
 | `NEXT_PUBLIC_SITE_URL` | Same as website (used in email templates) |
 | `RESEND_API_KEY` | Same |
-| `ANTHROPIC_API_KEY` | Same |
+| `OPENAI_API_KEY` | Same |
 | `DEFAULT_FROM_EMAIL` | Same |
 | `NEWSLETTER_FROM_EMAIL` | Same |
 | `UNSUBSCRIBE_SECRET` | Same |

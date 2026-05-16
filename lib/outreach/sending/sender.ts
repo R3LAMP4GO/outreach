@@ -17,6 +17,7 @@ import type { BusinessHoursConfig } from "../types/config";
 import { updateCampaignStats } from "../campaigns/actions";
 import {
   getAvailableSenders,
+  getSenderAccountByEmail,
   incrementSenderCount,
   updateSenderLastSent,
   resetDailySenderCounts as resetDailySenderCountsQuery,
@@ -120,6 +121,49 @@ export async function selectAvailableSender(campaignId: string): Promise<SenderA
 
   // Return sender with lowest usage
   return availableSenders[0];
+}
+
+/**
+ * Select a sender account, preferring the one owned by the logged-in admin.
+ *
+ * Routing rules (in order):
+ *   1. If `userEmail` is set and there's an active sender_account whose email
+ *      matches AND it's under its daily limit → return it. This is the
+ *      "Isaac replies as isaac@" / "Josh replies as josh@" behaviour.
+ *   2. If `campaignId` is set → fall back to round-robin via
+ *      `selectAvailableSender(campaignId)` (campaign sender pool, load-balanced).
+ *   3. Otherwise → null.
+ *
+ * Used by:
+ *   - app/api/outreach/replies/[replyId]/send/route.ts (reply send)
+ *   - app/api/crm/contacts/[id]/send-email/route.ts (cold first-touch)
+ *
+ * Bulk campaign sequences (lib/outreach/sending/sender.ts → sendEmail) keep
+ * using `selectAvailableSender` directly — they run on the worker without a
+ * user session, so per-user routing doesn't apply.
+ */
+export async function selectSenderForUser(
+  userEmail: string | null | undefined,
+  campaignId: string | null,
+): Promise<SenderAccount | null> {
+  if (userEmail) {
+    const owned = await getSenderAccountByEmail(userEmail);
+    if (
+      owned &&
+      owned.is_active &&
+      owned.emails_sent_today !== null &&
+      owned.daily_limit !== null &&
+      owned.emails_sent_today < owned.daily_limit
+    ) {
+      return owned;
+    }
+  }
+
+  if (campaignId) {
+    return selectAvailableSender(campaignId);
+  }
+
+  return null;
 }
 
 /**

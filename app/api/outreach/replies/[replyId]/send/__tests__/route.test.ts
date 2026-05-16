@@ -8,7 +8,7 @@ const {
   mockAuth,
   mockDbSelect,
   mockDbUpdate,
-  mockSelectAvailableSender,
+  mockSelectSenderForUser,
   mockIncrementSenderCount,
   mockResendSend,
   mockWriteTimelineEvent,
@@ -16,7 +16,7 @@ const {
   mockAuth: vi.fn(),
   mockDbSelect: vi.fn(),
   mockDbUpdate: vi.fn(),
-  mockSelectAvailableSender: vi.fn(),
+  mockSelectSenderForUser: vi.fn(),
   mockIncrementSenderCount: vi.fn(),
   mockResendSend: vi.fn(),
   mockWriteTimelineEvent: vi.fn(),
@@ -54,7 +54,7 @@ vi.mock("@/lib/db/schema", () => ({
 }));
 
 vi.mock("@/lib/outreach/sending/sender", () => ({
-  selectAvailableSender: mockSelectAvailableSender,
+  selectSenderForUser: mockSelectSenderForUser,
 }));
 
 vi.mock("@/lib/outreach/sending/queries", () => ({
@@ -348,7 +348,7 @@ describe("POST /api/outreach/replies/[replyId]/send", () => {
   it("returns 422 and does NOT set replySentAt when no sender is available", async () => {
     mockAuth.mockResolvedValue(ADMIN_SESSION);
     mockReplyFetch([{ reply: BASE_REPLY_RECORD, contact: BASE_CONTACT, campaign: BASE_CAMPAIGN }]);
-    mockSelectAvailableSender.mockResolvedValue(null);
+    mockSelectSenderForUser.mockResolvedValue(null);
 
     const res = await POST(makeRequest(), makeParams());
     expect(res.status).toBe(422);
@@ -362,7 +362,7 @@ describe("POST /api/outreach/replies/[replyId]/send", () => {
     delete process.env.RESEND_API_KEY;
     mockAuth.mockResolvedValue(ADMIN_SESSION);
     mockReplyFetch([{ reply: BASE_REPLY_RECORD, contact: BASE_CONTACT, campaign: BASE_CAMPAIGN }]);
-    mockSelectAvailableSender.mockResolvedValue(SENDER);
+    mockSelectSenderForUser.mockResolvedValue(SENDER);
 
     const res = await POST(makeRequest(), makeParams());
     expect(res.status).toBe(500);
@@ -379,7 +379,7 @@ describe("POST /api/outreach/replies/[replyId]/send", () => {
   it("returns 409 when lock UPDATE returns empty (concurrent request won the race)", async () => {
     mockAuth.mockResolvedValue(ADMIN_SESSION);
     mockReplyFetch([{ reply: BASE_REPLY_RECORD, contact: BASE_CONTACT, campaign: BASE_CAMPAIGN }]);
-    mockSelectAvailableSender.mockResolvedValue(SENDER);
+    mockSelectSenderForUser.mockResolvedValue(SENDER);
     // Lock returns no rows — another request claimed it first
     mockLockUpdate([]);
 
@@ -396,7 +396,7 @@ describe("POST /api/outreach/replies/[replyId]/send", () => {
   it("rolls back replySentAt when Resend returns an error", async () => {
     mockAuth.mockResolvedValue(ADMIN_SESSION);
     mockReplyFetch([{ reply: BASE_REPLY_RECORD, contact: BASE_CONTACT, campaign: BASE_CAMPAIGN }]);
-    mockSelectAvailableSender.mockResolvedValue(SENDER);
+    mockSelectSenderForUser.mockResolvedValue(SENDER);
 
     // Lock acquired successfully
     let updateCallCount = 0;
@@ -454,7 +454,7 @@ describe("POST /api/outreach/replies/[replyId]/send", () => {
       [{ reply: updatedReplyRecord, contact: BASE_CONTACT, campaign: BASE_CAMPAIGN }],
     ]);
 
-    mockSelectAvailableSender.mockResolvedValue(SENDER);
+    mockSelectSenderForUser.mockResolvedValue(SENDER);
     mockResendSend.mockResolvedValue({ data: { id: "resend-msg-1" }, error: null });
     mockIncrementSenderCount.mockResolvedValue(undefined);
 
@@ -501,7 +501,7 @@ describe("POST /api/outreach/replies/[replyId]/send", () => {
       [], // timeline contacts lookup (fire-and-forget)
       [{ reply: updatedReplyRecord, contact: BASE_CONTACT, campaign: BASE_CAMPAIGN }],
     ]);
-    mockSelectAvailableSender.mockResolvedValue(SENDER);
+    mockSelectSenderForUser.mockResolvedValue(SENDER);
     mockResendSend.mockResolvedValue({ data: { id: "msg-2" }, error: null });
     mockIncrementSenderCount.mockResolvedValue(undefined);
     mockUpdateSequence([{ id: REPLY_ID }], [updatedReplyRecord]);
@@ -525,7 +525,7 @@ describe("POST /api/outreach/replies/[replyId]/send", () => {
       [], // timeline contacts lookup (fire-and-forget)
       [{ reply: updatedReplyRecord, contact: BASE_CONTACT, campaign: BASE_CAMPAIGN }],
     ]);
-    mockSelectAvailableSender.mockResolvedValue(SENDER);
+    mockSelectSenderForUser.mockResolvedValue(SENDER);
     mockResendSend.mockResolvedValue({ data: { id: "msg-3" }, error: null });
     mockIncrementSenderCount.mockResolvedValue(undefined);
     mockUpdateSequence([{ id: REPLY_ID }], [updatedReplyRecord]);
@@ -556,7 +556,7 @@ describe("POST /api/outreach/replies/[replyId]/send", () => {
       [], // timeline contacts lookup (fire-and-forget)
       [{ reply: updatedReplyRecord, contact: BASE_CONTACT, campaign: BASE_CAMPAIGN }],
     ]);
-    mockSelectAvailableSender.mockResolvedValue(SENDER);
+    mockSelectSenderForUser.mockResolvedValue(SENDER);
     mockResendSend.mockResolvedValue({ data: { id: "msg-4" }, error: null });
     mockIncrementSenderCount.mockResolvedValue(undefined);
     mockUpdateSequence([{ id: REPLY_ID }], [updatedReplyRecord]);

@@ -2,7 +2,7 @@
  * Eval harness for the outreach reply analyzer.
  *
  * Runs a small set of representative reply scenarios through `analyzeReply`
- * against the live Anthropic API and prints intent/sentiment pass/fail plus
+ * against the live OpenAI API and prints intent/sentiment pass/fail plus
  * the generated suggested reply for human review.
  *
  * Run: `bun scripts/eval-replies.ts`
@@ -192,8 +192,8 @@ function badge(ok: boolean, label: string): string {
 }
 
 async function main() {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error("ANTHROPIC_API_KEY not set. Add it to .env.local.");
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY not set. Add it to .env.local.");
     process.exit(1);
   }
 

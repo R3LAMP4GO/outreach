@@ -63,7 +63,7 @@ Generate a new newsletter edition with AI-curated content.
 1. Fetch articles from RSS feeds (last 24 hours)
 2. Score and rank articles by recency, content quality, and engagement
 3. Select top 15 articles
-4. Summarize each article with Claude AI (psychology-optimized)
+4. Summarize each article with OpenAI (psychology-optimized, gpt-4.1-mini)
 5. Generate newsletter HTML/text templates
 6. Store in database with status 'draft'
 
@@ -351,8 +351,8 @@ curl -X POST https://coastalprograms.com/api/newsletter/123e4567-e89b-12d3-a456-
 Required environment variables:
 
 ```bash
-# Anthropic AI (for content summarization)
-ANTHROPIC_API_KEY=sk-ant-...
+# OpenAI (for content summarization)
+OPENAI_API_KEY=sk-...
 
 # Resend (for sending emails)
 RESEND_API_KEY=re_...
@@ -387,7 +387,7 @@ Campaign configurations with scheduling and content settings.
 - `timezone` - Timezone string
 - `sources` - JSONB array of RSS sources
 - `articleLimit` - Max articles to fetch
-- `summarizerModel` - Claude model to use
+- `summarizerModel` - OpenAI model to use (default: `gpt-4.1-mini`)
 - `psychologyMode` - Content curation mode
 - `platforms` - Array of publishing platforms
 
@@ -572,7 +572,7 @@ Rate limit information is returned in response headers:
 
 ## Security Best Practices
 
-1. **Never expose service keys** - ANTHROPIC_API_KEY, DATABASE_URL, RESEND_API_KEY must remain server-side only
+1. **Never expose service keys** - OPENAI_API_KEY, DATABASE_URL, RESEND_API_KEY must remain server-side only
 
 2. **Validate all inputs** - All request bodies validated with Zod schemas
 
@@ -589,7 +589,7 @@ Rate limit information is returned in response headers:
 ## Troubleshooting
 
 **Newsletter generation fails:**
-1. Check ANTHROPIC_API_KEY is valid
+1. Check OPENAI_API_KEY is valid
 2. Verify RSS feeds are accessible
 3. Check database connection (DATABASE_URL)
 4. Review error logs in admin_audit_log

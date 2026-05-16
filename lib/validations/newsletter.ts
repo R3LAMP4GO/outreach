@@ -60,7 +60,7 @@ export const createCampaignSchema = z.object({
   sendDays: z.array(z.number().min(0).max(6)).min(1).default([2, 3, 4]), // 0=Sun, 1=Mon, etc.
   timezone: z.string().default("Australia/Perth"),
   articleLimit: z.number().int().min(1).max(100).default(50),
-  summarizerModel: z.string().default("claude-3-5-sonnet-20241022"),
+  summarizerModel: z.string().default("gpt-4.1-mini"),
   psychologyMode: z
     .enum(["curiosity-driven", "urgency", "benefit-driven"])
     .default("curiosity-driven"),

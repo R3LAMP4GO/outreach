@@ -14,6 +14,7 @@
 
 import { stream, type Message, type Tool, type ToolCall } from "@kenkaiiii/gg-ai";
 import { z } from "zod";
+import { AI_MODELS } from "./models";
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -73,9 +74,9 @@ export async function extractCallData(input: {
   callDurationSeconds: number;
   callerNumber: string;
 }): Promise<CallExtraction> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY is not set");
+    throw new Error("OPENAI_API_KEY is not set");
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -108,8 +109,8 @@ Call ${TOOL_NAME} with the extracted fields.`;
   ];
 
   const response = await stream({
-    provider: "anthropic",
-    model: "claude-sonnet-4-6",
+    provider: "openai",
+    model: AI_MODELS.callExtraction,
     apiKey,
     messages,
     tools: [tool],

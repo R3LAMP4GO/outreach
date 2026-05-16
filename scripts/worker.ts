@@ -4,7 +4,7 @@
  * Start with: bun scripts/worker.ts
  *
  * Registers handlers for all queues and keeps the process alive.
- * Needs: DATABASE_URL, RESEND_API_KEY, ANTHROPIC_API_KEY,
+ * Needs: DATABASE_URL, RESEND_API_KEY, OPENAI_API_KEY,
  *        NEXT_PUBLIC_SITE_URL, UNSUBSCRIBE_SECRET,
  *        DEFAULT_FROM_EMAIL, NEWSLETTER_FROM_EMAIL
  */

@@ -102,7 +102,7 @@ describe("GET /api/health", () => {
     const bodyStr = JSON.stringify(body);
     expect(bodyStr).not.toContain("DATABASE_URL");
     expect(bodyStr).not.toContain("RESEND_API_KEY");
-    expect(bodyStr).not.toContain("ANTHROPIC_API_KEY");
+    expect(bodyStr).not.toContain("OPENAI_API_KEY");
     expect(body.checks).toBeUndefined();
   });
 
@@ -110,7 +110,7 @@ describe("GET /api/health", () => {
     vi.stubEnv("CRON_SECRET", "test-secret");
     vi.stubEnv("DATABASE_URL", "postgresql://test:test@localhost:5432/test");
     vi.stubEnv("RESEND_API_KEY", "re_test");
-    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test");
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
     vi.stubEnv("NEWSLETTER_API_KEY", "nl-test");
     buildMockDb({ executeHealthy: true });
 
@@ -127,7 +127,7 @@ describe("GET /api/health", () => {
   it("does not expose actual env var values in authenticated response", async () => {
     vi.stubEnv("CRON_SECRET", "test-secret");
     vi.stubEnv("RESEND_API_KEY", "re_test");
-    vi.stubEnv("ANTHROPIC_API_KEY", "sk-ant-test");
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
     vi.stubEnv("NEWSLETTER_API_KEY", "nl-test");
     buildMockDb({ executeHealthy: true });
 
@@ -136,6 +136,6 @@ describe("GET /api/health", () => {
     const bodyStr = JSON.stringify(body);
 
     expect(bodyStr).not.toContain("re_test");
-    expect(bodyStr).not.toContain("sk-ant-test");
+    expect(bodyStr).not.toContain("sk-test");
   });
 });

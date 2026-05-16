@@ -1,6 +1,6 @@
 /**
  * Tests for ArticleSummarizer
- * Uses mocked Anthropic SDK responses
+ * Uses mocked OpenAI SDK responses
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -8,7 +8,7 @@ import { ArticleSummarizer } from "../summarizer";
 import type { ArticleInput, SummarizerConfig } from "../../../types/summarizer";
 import { SummarizerErrorType } from "../../../types/summarizer";
 
-// Mock Anthropic SDK — use vi.hoisted() so mocks are available when vi.mock() factory runs
+// Mock OpenAI SDK — use vi.hoisted() so mocks are available when vi.mock() factory runs
 const { mockCreate, MockAPIError } = vi.hoisted(() => {
   const mockCreate = vi.fn();
 
@@ -31,26 +31,59 @@ const { mockCreate, MockAPIError } = vi.hoisted(() => {
   return { mockCreate, MockAPIError };
 });
 
-vi.mock("@anthropic-ai/sdk", () => {
+vi.mock("openai", () => {
   // Use a regular function (not arrow) so it can be called with `new`
-  function MockAnthropic() {
+  function MockOpenAI() {
     return {
-      messages: {
-        create: mockCreate,
+      chat: {
+        completions: {
+          create: mockCreate,
+        },
       },
     };
   }
 
-  // Add APIError as a static property of the Anthropic class
-  MockAnthropic.APIError = MockAPIError;
+  // Add APIError as a static property of the OpenAI class
+  MockOpenAI.APIError = MockAPIError;
 
   return {
-    default: MockAnthropic,
+    default: MockOpenAI,
   };
 });
 
 // Import after mock is set up
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+
+/**
+ * Build an OpenAI Chat Completion response with the given parsed JSON body
+ * in `choices[0].message.content`. Keeps the rest of the shape minimal —
+ * the summarizer only reads `choices[0].message.content` and `usage`.
+ */
+function makeChatCompletion(jsonBody: unknown): OpenAI.Chat.Completions.ChatCompletion {
+  return {
+    id: "chatcmpl-test123",
+    object: "chat.completion",
+    created: 0,
+    model: "gpt-4.1-mini",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: typeof jsonBody === "string" ? jsonBody : JSON.stringify(jsonBody),
+          refusal: null,
+        },
+        logprobs: null,
+        finish_reason: "stop",
+      },
+    ],
+    usage: {
+      prompt_tokens: 500,
+      completion_tokens: 300,
+      total_tokens: 800,
+    },
+  } as unknown as OpenAI.Chat.Completions.ChatCompletion;
+}
 
 describe("ArticleSummarizer", () => {
   let summarizer: ArticleSummarizer;
@@ -73,62 +106,36 @@ describe("ArticleSummarizer", () => {
     source: "Business Psychology Today",
   };
 
-  const mockClaudeResponse: Anthropic.Message = {
-    id: "msg_test123",
-    type: "message",
-    role: "assistant",
-    model: "claude-3-5-sonnet-20241022",
-    container: null,
-    content: [
-      {
-        type: "text",
-        citations: null,
-        text: JSON.stringify({
-          summary:
-            'Loss aversion—the psychological principle where losing feels twice as painful as gaining feels good—can boost your conversion rates by up to 30%. Frame your offers around what customers stand to lose (not just gain) to tap into this powerful bias. Amazon\'s "Only 2 left" messaging demonstrates this principle in action.',
-          keyInsights: [
-            "Loss-framed messaging outperforms gain-framed by 30% in conversion tests",
-            "People feel losses 2x more intensely than equivalent gains—use this in your copy",
-            'Amazon leverages loss aversion with scarcity messaging ("Only 2 left in stock")',
-            'Frame offers as preventing loss: "Don\'t miss out" beats "Get this benefit"',
-          ],
-          psychologyPrinciple: {
-            name: "Loss Aversion",
-            explanation:
-              "This article directly explains loss aversion—a cognitive bias where the psychological pain of losing outweighs the pleasure of gaining. Business owners can apply this by reframing value propositions to emphasize what customers risk losing.",
-          },
-          actionableFramework: {
-            title: "3-Step Loss Aversion Framework",
-            steps: [
-              "Identify what your customer stands to lose without your product (time, money, opportunity)",
-              'Reframe your messaging to highlight the loss: "Stop wasting $X" instead of "Save $X"',
-              'Add urgency elements that emphasize scarcity or time limits: "Last chance before..."',
-            ],
-          },
-        }),
-      },
+  const mockChatCompletion = makeChatCompletion({
+    summary:
+      'Loss aversion—the psychological principle where losing feels twice as painful as gaining feels good—can boost your conversion rates by up to 30%. Frame your offers around what customers stand to lose (not just gain) to tap into this powerful bias. Amazon\'s "Only 2 left" messaging demonstrates this principle in action.',
+    keyInsights: [
+      "Loss-framed messaging outperforms gain-framed by 30% in conversion tests",
+      "People feel losses 2x more intensely than equivalent gains—use this in your copy",
+      'Amazon leverages loss aversion with scarcity messaging ("Only 2 left in stock")',
+      'Frame offers as preventing loss: "Don\'t miss out" beats "Get this benefit"',
     ],
-    stop_reason: "end_turn",
-    stop_sequence: null,
-    stop_details: null,
-    usage: {
-      cache_creation: null,
-      cache_creation_input_tokens: null,
-      cache_read_input_tokens: null,
-      inference_geo: null,
-      input_tokens: 500,
-      output_tokens: 300,
-      server_tool_use: null,
-      service_tier: null,
+    psychologyPrinciple: {
+      name: "Loss Aversion",
+      explanation:
+        "This article directly explains loss aversion—a cognitive bias where the psychological pain of losing outweighs the pleasure of gaining. Business owners can apply this by reframing value propositions to emphasize what customers risk losing.",
     },
-  };
+    actionableFramework: {
+      title: "3-Step Loss Aversion Framework",
+      steps: [
+        "Identify what your customer stands to lose without your product (time, money, opportunity)",
+        'Reframe your messaging to highlight the loss: "Stop wasting $X" instead of "Save $X"',
+        'Add urgency elements that emphasize scarcity or time limits: "Last chance before..."',
+      ],
+    },
+  });
 
   beforeEach(() => {
     // Reset mocks
     vi.clearAllMocks();
 
     // Setup default mock response (this acts as fallback for any call beyond the queued Once methods)
-    mockCreate.mockResolvedValue(mockClaudeResponse);
+    mockCreate.mockResolvedValue(mockChatCompletion);
 
     summarizer = new ArticleSummarizer(mockConfig);
   });
@@ -211,16 +218,8 @@ describe("ArticleSummarizer", () => {
       expect(result.error.type).toBe(SummarizerErrorType.API_ERROR);
     });
 
-    it("should handle parsing errors when Claude returns invalid JSON", async () => {
-      const invalidResponse = {
-        ...mockClaudeResponse,
-        content: [
-          {
-            type: "text",
-            text: "This is not valid JSON",
-          },
-        ],
-      };
+    it("should handle parsing errors when OpenAI returns invalid JSON", async () => {
+      const invalidResponse = makeChatCompletion("This is not valid JSON");
 
       mockCreate.mockResolvedValue(invalidResponse);
 
@@ -236,7 +235,7 @@ describe("ArticleSummarizer", () => {
       // Setup mock to fail once then succeed
       mockCreate
         .mockRejectedValueOnce(new MockAPIError(429, { error: "Rate limit" }, "Rate limited", {}))
-        .mockResolvedValueOnce(mockClaudeResponse);
+        .mockResolvedValueOnce(mockChatCompletion);
 
       const retrySummarizer = new ArticleSummarizer({
         ...mockConfig,
@@ -250,20 +249,12 @@ describe("ArticleSummarizer", () => {
     });
 
     it("should handle articles without psychology principles", async () => {
-      const responseWithoutPrinciple = {
-        ...mockClaudeResponse,
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({
-              summary: "Test summary without psychology principle",
-              keyInsights: ["Insight 1", "Insight 2", "Insight 3"],
-              psychologyPrinciple: null,
-              actionableFramework: null,
-            }),
-          },
-        ],
-      };
+      const responseWithoutPrinciple = makeChatCompletion({
+        summary: "Test summary without psychology principle",
+        keyInsights: ["Insight 1", "Insight 2", "Insight 3"],
+        psychologyPrinciple: null,
+        actionableFramework: null,
+      });
 
       mockCreate.mockResolvedValueOnce(responseWithoutPrinciple);
 
@@ -317,9 +308,9 @@ describe("ArticleSummarizer", () => {
 
       // Make second call fail with non-retryable error (400 = Bad Request)
       mockCreate
-        .mockResolvedValueOnce(mockClaudeResponse)
+        .mockResolvedValueOnce(mockChatCompletion)
         .mockRejectedValueOnce(new MockAPIError(400, { error: "Bad request" }, "Error", {}))
-        .mockResolvedValueOnce(mockClaudeResponse);
+        .mockResolvedValueOnce(mockChatCompletion);
 
       const result = await summarizer.summarizeBatch(mockArticles);
 
@@ -362,9 +353,9 @@ describe("ArticleSummarizer", () => {
 
       // Use non-retryable error (400 = Bad Request)
       mockCreate
-        .mockResolvedValueOnce(mockClaudeResponse)
+        .mockResolvedValueOnce(mockChatCompletion)
         .mockRejectedValueOnce(new MockAPIError(400, { error: "Bad request" }, "Error", {}))
-        .mockResolvedValueOnce(mockClaudeResponse);
+        .mockResolvedValueOnce(mockChatCompletion);
 
       const result = await summarizer.summarizeBatch(mockArticles, {
         stopOnError: true,

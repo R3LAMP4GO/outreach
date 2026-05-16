@@ -72,6 +72,7 @@ import {
 import { IconMail, IconCalendar, IconBrandLinkedin, IconWorld } from "@tabler/icons-react";
 import { toast } from "sonner";
 import { getEventStyle } from "@/lib/crm/event-styles";
+import { ComposeEmailDialog } from "./ComposeEmailDialog";
 
 interface DealWithStage {
   id: string;
@@ -103,6 +104,7 @@ export function ContactDetailSheet({
   const [timeline, setTimeline] = useState<TimelineRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
 
   const [formData, setFormData] = useState<{
     first_name: string;
@@ -566,7 +568,13 @@ export function ContactDetailSheet({
                       <IconCalendar className="h-4 w-4 mr-2" />
                       Schedule Meeting
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      disabled={!contact?.email}
+                      onClick={() => setComposeOpen(true)}
+                    >
                       <IconMail className="h-4 w-4 mr-2" />
                       Send Email
                     </Button>
@@ -744,6 +752,20 @@ export function ContactDetailSheet({
           </SheetHeader>
         )}
       </SheetContent>
+      {contact?.email && (
+        <ComposeEmailDialog
+          contactId={contact.id}
+          contactEmail={contact.email}
+          contactName={[contact.first_name, contact.last_name].filter(Boolean).join(" ") || null}
+          open={composeOpen}
+          onOpenChange={setComposeOpen}
+          onSent={() => {
+            // Refresh timeline so the new email_sent event shows up.
+            void fetchContact();
+            onContactUpdated?.();
+          }}
+        />
+      )}
     </Sheet>
   );
 }

@@ -68,7 +68,7 @@ Set on **both** the `website` and `worker` Railway services.
 | `QUO_WEBHOOK_SECRET`           | Base64 signing key from the Quo webhook details page (**"Reveal Signing Secret"**). Used to verify the `openphone-signature` header.    | yes      |
 | `QUO_API_KEY`                  | Quo REST API key. Used by `lib/quo/client.ts` to fetch call metadata / summaries / transcripts. NO `Bearer` prefix.                      | yes      |
 | `QUO_PHONE_NUMBER`             | Your Quo number in E.164 (`+15551234567`). Determines which side of `from`/`to` is the prospect on inbound vs. outbound calls/messages. | yes      |
-| `ANTHROPIC_API_KEY`            | For the AI extraction step (`extractCallData` → gg-ai → Anthropic).                                                                      | yes      |
+| `OPENAI_API_KEY`               | For the AI extraction step (`extractCallData` → gg-ai → OpenAI, `gpt-4.1-mini`).                                                          | yes      |
 | `PROCESS_QUO_CALL_CONCURRENCY` | Max parallel `process-quo-call` jobs on the worker (default 2).                                                                          | no       |
 | `QUO_API_BASE`                 | Override the REST base URL. Defaults to `https://api.openphone.com/v1`.                                                                  | no       |
 

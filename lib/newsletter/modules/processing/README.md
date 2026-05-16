@@ -1,12 +1,12 @@
 # AI Article Summarization Module
 
-Production-ready AI summarization module using Anthropic Claude, optimized for business owner audiences with psychology-backed insights.
+Production-ready AI summarization module using OpenAI (gpt-4.1-mini), optimized for business owner audiences with psychology-backed insights.
 
 ## Features
 
 - **Psychology-Optimized Prompts**: Based on research from `newsletter-system/research/psychology-principles.md`
 - **Response Caching**: In-memory cache to avoid re-processing same articles (7-day TTL)
-- **Rate Limiting**: Respects Claude API limits (50 requests/min, 50K tokens/min)
+- **Rate Limiting**: Respects OpenAI API limits (50 requests/min, 50K tokens/min)
 - **Error Handling**: Comprehensive error types with retry logic
 - **Exponential Backoff**: Automatic retry with exponential backoff on transient failures
 - **Batch Processing**: Process multiple articles with concurrency control
@@ -21,10 +21,10 @@ pnpm install
 
 ## Configuration
 
-The module requires an Anthropic API key. Set it via environment variable or pass directly:
+The module requires an OpenAI API key. Set it via environment variable or pass directly:
 
 ```bash
-export ANTHROPIC_API_KEY="your-api-key-here"
+export OPENAI_API_KEY="your-api-key-here"
 ```
 
 ## Usage
@@ -35,7 +35,7 @@ export ANTHROPIC_API_KEY="your-api-key-here"
 import { ArticleSummarizer } from '@/lib/newsletter/processing';
 
 const summarizer = new ArticleSummarizer({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
 const article = {
@@ -86,8 +86,8 @@ console.log(`Total Tokens: ${result.stats.totalTokens}`);
 
 ```typescript
 const summarizer = new ArticleSummarizer({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-  model: 'claude-3-5-sonnet-20241022', // Default
+  apiKey: process.env.OPENAI_API_KEY!,
+  model: 'gpt-4.1-mini', // Default
   maxTokens: 1024, // Default
   temperature: 0.3, // Default (lower = more consistent)
   enableCache: true, // Default
@@ -143,7 +143,7 @@ if (!result.success) {
       break;
 
     case SummarizerErrorType.API_ERROR:
-      console.error('Claude API error:', error.message);
+      console.error('OpenAI API error:', error.message);
       if (error.retryable) {
         // Retry the request
       }
@@ -267,10 +267,10 @@ Both must be satisfied for a request to proceed.
 | Error Type | Description | Retryable |
 |------------|-------------|-----------|
 | `RATE_LIMIT_EXCEEDED` | API rate limit hit | Yes |
-| `API_ERROR` | Claude API returned error | Maybe |
+| `API_ERROR` | OpenAI API returned error | Maybe |
 | `TIMEOUT` | Request timeout | Yes |
 | `INVALID_INPUT` | Article validation failed | No |
-| `PARSING_ERROR` | Failed to parse Claude response | No |
+| `PARSING_ERROR` | Failed to parse OpenAI response | No |
 | `NETWORK_ERROR` | Network connectivity issue | Yes |
 | `UNKNOWN` | Unexpected error | No |
 
@@ -354,18 +354,18 @@ const worker = new Worker('summarizer', async (job) => {
 
 ## Cost Estimation
 
-Claude 3.5 Sonnet pricing (as of Nov 2024):
-- Input: $3 per million tokens
-- Output: $15 per million tokens
+OpenAI gpt-4.1-mini pricing:
+- Input: $0.40 per million tokens
+- Output: $1.60 per million tokens
 
 Average cost per article:
-- Input: 750 tokens × $3/1M = $0.00225
-- Output: 300 tokens × $15/1M = $0.0045
-- **Total: ~$0.007 per article**
+- Input: 750 tokens × $0.40/1M = $0.0003
+- Output: 300 tokens × $1.60/1M = $0.00048
+- **Total: ~$0.00078 per article**
 
-For 1,000 articles: ~$7
-For 10,000 articles: ~$70
-For 100,000 articles: ~$700
+For 1,000 articles: ~$0.78
+For 10,000 articles: ~$7.80
+For 100,000 articles: ~$78
 
 Cache can reduce costs by 30-50% in production.
 

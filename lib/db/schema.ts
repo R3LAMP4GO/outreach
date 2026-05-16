@@ -487,7 +487,7 @@ export const newsletterCampaigns = pgTable("newsletter_campaigns", {
   sendTime: text("send_time").notNull(),
   sources: jsonb("sources").notNull().default([]),
   status: text("status").notNull().default("draft"),
-  summarizerModel: text("summarizer_model").notNull().default("claude-3-5-sonnet-20241022"),
+  summarizerModel: text("summarizer_model").notNull().default("gpt-4.1-mini"),
   templateId: uuid("template_id"),
   timezone: text("timezone").notNull().default("Australia/Perth"),
   totalClicks: integer("total_clicks").notNull().default(0),

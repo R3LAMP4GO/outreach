@@ -4,20 +4,21 @@
  * Coordinates the full newsletter generation workflow:
  * 1. Fetch articles from RSS feeds
  * 2. Deduplicate and score articles
- * 3. Summarize top articles with Claude AI
+ * 3. Summarize top articles with OpenAI
  * 4. Generate newsletter HTML/text templates
  * 5. Store in database
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { db } from "@/lib/db/worker";
 import { newsletterEditions } from "@/lib/db/schema";
+import { AI_MODELS } from "@/lib/ai/models";
 import Parser from "rss-parser";
 import crypto from "crypto";
 
 // Types
 interface OrchestratorConfig {
-  anthropicApiKey: string;
+  openaiApiKey: string;
 }
 
 interface GenerateOptions {
@@ -74,12 +75,12 @@ const DEFAULT_RSS_SOURCES = [
  * Newsletter orchestrator class
  */
 class NewsletterOrchestrator {
-  private anthropic: Anthropic;
+  private openai: OpenAI;
   private rssParser: Parser;
 
   constructor(config: OrchestratorConfig) {
-    this.anthropic = new Anthropic({
-      apiKey: config.anthropicApiKey,
+    this.openai = new OpenAI({
+      apiKey: config.openaiApiKey,
     });
 
     this.rssParser = new Parser({
@@ -115,7 +116,7 @@ class NewsletterOrchestrator {
     // 4. Summarize articles with AI
     const enrichedArticles = await this.summarizeArticles(
       topArticles,
-      options.campaignConfig?.summarizer_model || "claude-3-5-sonnet-20241022",
+      options.campaignConfig?.summarizer_model || AI_MODELS.newsletterSummary,
     );
     console.log(`Enriched ${enrichedArticles.length} articles with AI summaries`);
 
@@ -218,16 +219,17 @@ class NewsletterOrchestrator {
   }
 
   /**
-   * Summarize articles with Claude AI
+   * Summarize articles with OpenAI
    */
   private async summarizeArticles(articles: Article[], model: string): Promise<EnrichedArticle[]> {
     const enrichedArticles: EnrichedArticle[] = [];
 
     for (const article of articles) {
       try {
-        const response = await this.anthropic.messages.create({
+        const response = await this.openai.chat.completions.create({
           model,
-          max_tokens: 1024,
+          max_completion_tokens: 1024,
+          response_format: { type: "json_object" },
           messages: [
             {
               role: "user",
@@ -250,9 +252,9 @@ Respond in JSON format:
           ],
         });
 
-        const content = response.content[0];
-        if (content.type === "text") {
-          const parsed = JSON.parse(content.text);
+        const text = response.choices[0]?.message?.content;
+        if (text) {
+          const parsed = JSON.parse(text);
 
           enrichedArticles.push({
             ...article,
@@ -287,9 +289,10 @@ Respond in JSON format:
     psychologyMode: string,
   ): Promise<{ subject: string; preheader: string; html: string; text: string }> {
     // Generate subject line with AI
-    const subjectResponse = await this.anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 256,
+    const subjectResponse = await this.openai.chat.completions.create({
+      model: AI_MODELS.newsletterSummary,
+      max_completion_tokens: 256,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "user",
@@ -310,11 +313,11 @@ Respond in JSON format:
       ],
     });
 
-    const subjectContent = subjectResponse.content[0];
+    const subjectText = subjectResponse.choices[0]?.message?.content;
     let subject = "This Week in Business & Technology";
 
-    if (subjectContent.type === "text") {
-      const parsed = JSON.parse(subjectContent.text);
+    if (subjectText) {
+      const parsed = JSON.parse(subjectText);
       subject = parsed.subjects[0];
     }
 

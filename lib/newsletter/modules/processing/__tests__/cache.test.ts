@@ -22,7 +22,7 @@ describe("SummaryCache", () => {
     keyInsights: ["Insight 1", "Insight 2", "Insight 3"],
     metadata: {
       processedAt: new Date(),
-      model: "claude-3-5-sonnet-20241022",
+      model: "gpt-4.1-mini",
       tokensUsed: 500,
       processingTimeMs: 1000,
       fromCache: false,

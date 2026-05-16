@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     const requiredEnvVars = [
       "DATABASE_URL",
       "RESEND_API_KEY",
-      "ANTHROPIC_API_KEY",
+      "OPENAI_API_KEY",
       "NEWSLETTER_API_KEY",
     ];
 

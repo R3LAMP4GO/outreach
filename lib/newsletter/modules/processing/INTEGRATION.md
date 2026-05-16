@@ -16,7 +16,7 @@ pnpm install
 ```
 
 Ensure these dependencies are installed:
-- `@anthropic-ai/sdk` - Claude API client
+- `openai` - OpenAI API client
 - `@supabase/supabase-js` - Database client
 - `zod` - Type validation
 
@@ -24,7 +24,7 @@ Ensure these dependencies are installed:
 
 ```bash
 # .env
-ANTHROPIC_API_KEY=sk-ant-xxx
+OPENAI_API_KEY=sk-xxx
 SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_ANON_KEY=xxx
 ```
@@ -75,7 +75,7 @@ Example of stored data:
   },
   "ai_metadata": {
     "processedAt": "2024-01-15T10:30:00Z",
-    "model": "claude-3-5-sonnet-20241022",
+    "model": "gpt-4.1-mini",
     "tokensUsed": 850,
     "processingTimeMs": 1250,
     "fromCache": false
@@ -97,7 +97,7 @@ export class ArticleEnrichmentService {
 
   constructor() {
     this.summarizer = new ArticleSummarizer({
-      apiKey: process.env.ANTHROPIC_API_KEY!,
+      apiKey: process.env.OPENAI_API_KEY!,
       enableCache: true,
       enableRateLimiting: true,
     });
@@ -709,7 +709,7 @@ psql $DATABASE_URL -c "SELECT id, title, summary, enriched_at FROM articles WHER
 
 ## Cost Estimation
 
-Based on Claude 3.5 Sonnet pricing:
+Based on OpenAI gpt-4.1-mini pricing:
 
 | Articles/Month | Tokens/Article | Cost/Month |
 |----------------|----------------|------------|

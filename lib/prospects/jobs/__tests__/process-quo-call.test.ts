@@ -251,7 +251,7 @@ beforeEach(() => {
   insertChain._returningQueue = [];
 
   vi.stubEnv("QUO_PHONE_NUMBER", OUR_QUO_NUMBER);
-  vi.stubEnv("ANTHROPIC_API_KEY", "sk-test");
+  vi.stubEnv("OPENAI_API_KEY", "sk-test");
 
   mockGetCall.mockResolvedValue(baseCall);
   mockGetCallSummary.mockResolvedValue(baseSummary);

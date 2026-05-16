@@ -20,7 +20,7 @@ import {
  * Orchestrates the full workflow:
  * 1. Fetch articles from RSS feeds
  * 2. Deduplicate and score articles
- * 3. Summarize top articles with Claude AI
+ * 3. Summarize top articles with OpenAI
  * 4. Generate newsletter template
  * 5. Store in database
  *
@@ -90,13 +90,13 @@ export async function POST(request: NextRequest) {
     const { campaignId, manual } = parsed.data;
 
     // 4. Retrieve API key from environment
-    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicApiKey) {
-      logger.error("ANTHROPIC_API_KEY not configured");
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) {
+      logger.error("OPENAI_API_KEY not configured");
       return NextResponse.json(
         {
           success: false,
-          error: "AI service not configured. Please set ANTHROPIC_API_KEY environment variable.",
+          error: "AI service not configured. Please set OPENAI_API_KEY environment variable.",
         },
         { status: 500 },
       );
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     });
 
     const orchestrator = createNewsletterOrchestrator({
-      anthropicApiKey,
+      openaiApiKey,
     });
 
     const result = await orchestrator.generateNewsletter({

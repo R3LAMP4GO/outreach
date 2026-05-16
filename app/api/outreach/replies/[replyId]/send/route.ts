@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { outreachReplies, outreachContacts, outreachCampaigns, contacts } from "@/lib/db/schema";
 import { logger } from "@/lib/logger";
 import { auth } from "@/lib/auth";
-import { selectAvailableSender } from "@/lib/outreach/sending/sender";
+import { selectSenderForUser } from "@/lib/outreach/sending/sender";
 import { incrementSenderCount } from "@/lib/outreach/sending/queries";
 import { writeTimelineEvent } from "@/lib/crm/timeline";
 import { buildQuotedReplyText, buildQuotedReplyHtml } from "@/lib/email/build-quoted-reply";
@@ -93,8 +93,11 @@ export async function POST(
       return Response.json({ error: "Reply has no associated campaign" }, { status: 400 });
     }
 
-    // Select sender account
-    const sender = await selectAvailableSender(campaignId);
+    // Select sender account. Prefer the mailbox owned by the logged-in admin
+    // (per-user routing — see CLAUDE.md "Outreach sender accounts"). Falls back
+    // to the campaign's round-robin pool if the admin has no sender_account or
+    // theirs is at its daily limit.
+    const sender = await selectSenderForUser(session.user.email, campaignId);
     if (!sender) {
       return Response.json(
         { error: "No available sender accounts for this campaign" },

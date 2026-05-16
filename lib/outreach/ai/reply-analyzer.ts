@@ -1,7 +1,8 @@
 import { generateObject } from "ai";
-import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { AI_MODELS } from "@/lib/ai/models";
 import { stripQuotedText } from "@/lib/email/strip-quoted-history";
 
 export interface ReplyAnalysis {
@@ -227,7 +228,7 @@ Jake
 </examples>`;
 
 /**
- * Analyze an inbound reply using Claude to determine sentiment, intent,
+ * Analyze an inbound reply using OpenAI to determine sentiment, intent,
  * generate a summary, and suggest a follow-up reply.
  *
  * When `conversationHistory` is supplied, the prompt is reshaped to give the
@@ -301,7 +302,7 @@ ${cleanedText}
     }
 
     const { object } = await generateObject({
-      model: anthropic("claude-sonnet-4-6"),
+      model: openai(AI_MODELS.replyAnalysis),
       system: SYSTEM_PROMPT,
       prompt,
       schema: replyAnalysisSchema,
@@ -319,10 +320,10 @@ ${cleanedText}
 }
 
 /**
- * Defensive sanitiser for model output. Sonnet 4.6 occasionally leaks JSON
- * structural characters into a string field (e.g. trailing `'}`, `"}`,
- * stray closing braces) when the prompt contains JSON-shaped examples or
- * the model gets confused at the boundary of the structured output.
+ * Defensive sanitiser for model output. Structured-output models occasionally
+ * leak JSON structural characters into a string field (e.g. trailing `'}`, `"}`,
+ * stray closing braces) when the prompt contains JSON-shaped examples or the
+ * model gets confused at the boundary of the structured output.
  *
  * We tightened the prompt to remove JSON-shaped examples; this is a belt-
  * and-braces backstop so a corrupted output never reaches the user.

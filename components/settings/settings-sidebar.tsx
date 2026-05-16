@@ -5,6 +5,7 @@ import {
   IconBuildingStore,
   IconMenu2,
   IconPalette,
+  IconPlug,
   IconShield,
   IconUser,
   IconUsers,
@@ -45,6 +46,10 @@ const NAV_SECTIONS = [
       { title: "Notifications", href: "/admin/settings/notifications", icon: IconBell },
       { title: "Appearance", href: "/admin/settings/appearance", icon: IconPalette },
     ],
+  },
+  {
+    label: "DEVELOPER",
+    items: [{ title: "Integrations", href: "/admin/settings/integrations", icon: IconPlug }],
   },
 ];
 

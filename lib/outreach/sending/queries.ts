@@ -31,6 +31,35 @@ export async function getSenderAccount(id: string): Promise<SenderAccount | null
 }
 
 /**
+ * Get a sender account by email address (e.g. for per-admin routing).
+ *
+ * Used by `selectSenderForUser` to route outbound replies + cold first-touch
+ * emails through the mailbox owned by the logged-in admin, instead of the
+ * campaign's round-robin pool.
+ *
+ * @param email - Sender mailbox (matched case-insensitively, normalised)
+ * @returns Sender account or null if no row matches
+ */
+export async function getSenderAccountByEmail(email: string): Promise<SenderAccount | null> {
+  try {
+    const normalised = email.trim().toLowerCase();
+    if (!normalised) return null;
+
+    const [row] = await db
+      .select()
+      .from(outreachSenderAccounts)
+      .where(sql`lower(${outreachSenderAccounts.email}) = ${normalised}`)
+      .limit(1);
+
+    if (!row) return null;
+    return toSnakeCase<SenderAccount>(row);
+  } catch (error) {
+    console.error("Error fetching sender account by email:", error);
+    return null;
+  }
+}
+
+/**
  * Get all sender accounts for a campaign
  *
  * @param campaignId - Campaign ID

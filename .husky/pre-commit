@@ -9,7 +9,9 @@ bunx lint-staged
 # flagged context lines, which produced false positives whenever a nearby
 # edit pulled a pre-existing test fixture URL into the diff's context window.
 # `grep -v '^+++'` strips the diff's file-header lines (e.g. `+++ b/file`).
-if git diff --cached --no-color | grep '^+' | grep -v '^+++' | grep -nE '(sk-(ant|live|test)-[A-Za-z0-9_-]{20,}|re_[A-Za-z0-9_-]{20,}|whsec_[A-Za-z0-9]{20,}|postgresql://[^[:space:]]+:[^[:space:]@]+@|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})'; then
+# Exclude .husky/ from the scan — those files define the patterns and would
+# trip on their own regex literals.
+if git diff --cached --no-color -- ':(exclude).husky/**' | grep '^+' | grep -v '^+++' | grep -nE '(sk-(ant|live|test)-[A-Za-z0-9_-]{20,}|re_[A-Za-z0-9_-]{20,}|whsec_[A-Za-z0-9]{20,}|postgresql://[^[:space:]]+:[^[:space:]@]+@|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})'; then
   echo "❌ Potential secret detected in staged diff. Remove before committing."
   exit 1
 fi

@@ -72,9 +72,7 @@ describe("POST /api/newsletter/generate", () => {
     vi.clearAllMocks();
 
     // Set required environment variables
-    // NOTE: ANTHROPIC_API_KEY and RESEND_API_KEY are deprecated in production
-    // These are kept in tests for backward compatibility
-    process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
+    process.env.OPENAI_API_KEY = "test-openai-key";
     process.env.RESEND_API_KEY = "test-resend-key";
     process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
   });

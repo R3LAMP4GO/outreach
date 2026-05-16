@@ -32,8 +32,8 @@ if (!replyId) {
   process.exit(2);
 }
 
-if (!process.env.DATABASE_URL || !process.env.ANTHROPIC_API_KEY) {
-  console.error("DATABASE_URL and ANTHROPIC_API_KEY must be set in .env.local");
+if (!process.env.DATABASE_URL || !process.env.OPENAI_API_KEY) {
+  console.error("DATABASE_URL and OPENAI_API_KEY must be set in .env.local");
   process.exit(1);
 }
 

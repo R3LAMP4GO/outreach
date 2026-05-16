@@ -1,9 +1,10 @@
 /**
- * AI Summarization Module using Anthropic Claude
+ * AI Summarization Module using OpenAI
  * Optimized for business owner audiences with psychology-backed insights
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import { AI_MODELS } from "@/lib/ai/models";
 import type {
   ArticleInput,
   EnrichedArticle,
@@ -20,7 +21,7 @@ import { RateLimiter } from "./rate-limiter";
  * Default configuration values
  */
 const DEFAULT_CONFIG: Required<Omit<SummarizerConfig, "apiKey">> = {
-  model: "claude-3-5-sonnet-20241022",
+  model: AI_MODELS.newsletterSummary,
   maxTokens: 1024,
   temperature: 0.3,
   enableCache: true,
@@ -131,7 +132,7 @@ IMPORTANT: Return ONLY the JSON object, no additional text.`;
  * Main Summarizer class
  */
 export class ArticleSummarizer {
-  private client: Anthropic;
+  private client: OpenAI;
   private config: Required<SummarizerConfig>;
   private cache?: SummaryCache;
   private rateLimiter?: RateLimiter;
@@ -143,8 +144,8 @@ export class ArticleSummarizer {
       ...config,
     };
 
-    // Initialize Anthropic client
-    this.client = new Anthropic({
+    // Initialize OpenAI client
+    this.client = new OpenAI({
       apiKey: this.config.apiKey,
       timeout: this.config.timeoutMs,
     });
@@ -345,24 +346,24 @@ export class ArticleSummarizer {
     try {
       const startTime = Date.now();
 
-      // Call Claude API
-      const response = await this.client.messages.create({
+      // Call OpenAI Chat Completions API. JSON mode forces the response to
+      // parse as a top-level JSON object, removing the markdown-fence dance.
+      const response = await this.client.chat.completions.create({
         model: this.config.model,
-        max_tokens: this.config.maxTokens,
+        max_completion_tokens: this.config.maxTokens,
         temperature: this.config.temperature,
-        system: SYSTEM_PROMPT,
+        response_format: { type: "json_object" },
         messages: [
-          {
-            role: "user",
-            content: createUserPrompt(article),
-          },
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: createUserPrompt(article) },
         ],
       });
 
       const processingTimeMs = Date.now() - startTime;
 
       // Record token usage in rate limiter
-      const tokensUsed = response.usage.input_tokens + response.usage.output_tokens;
+      const tokensUsed =
+        (response.usage?.prompt_tokens ?? 0) + (response.usage?.completion_tokens ?? 0);
       if (this.rateLimiter) {
         this.rateLimiter.recordRequest(tokensUsed);
       }
@@ -405,21 +406,21 @@ export class ArticleSummarizer {
   }
 
   /**
-   * Parse Claude API response
+   * Parse OpenAI Chat Completion response
    */
   private parseResponse(
-    response: Anthropic.Message,
+    response: OpenAI.Chat.Completions.ChatCompletion,
   ): Omit<EnrichedArticle, "article" | "metadata"> {
     try {
-      // Extract text content
-      const content = response.content[0];
-      if (content.type !== "text") {
-        throw new Error("Expected text response from Claude");
+      // Extract text content from the first choice. JSON mode guarantees a
+      // string content, but we still defensive-check + strip fences in case the
+      // model wraps it (older models sometimes did).
+      const text = (response.choices[0]?.message?.content ?? "").trim();
+      if (!text) {
+        throw new Error("OpenAI returned an empty response");
       }
 
-      const text = content.text.trim();
-
-      // Remove markdown code blocks if present
+      // Remove markdown code blocks if present (belt + braces with JSON mode)
       const jsonText = text.replace(/^```json?\n?/i, "").replace(/\n?```$/i, "");
 
       // Parse JSON
@@ -457,7 +458,7 @@ export class ArticleSummarizer {
       return error.retryable;
     }
 
-    if (error instanceof Anthropic.APIError) {
+    if (error instanceof OpenAI.APIError) {
       // Retry on rate limits and server errors
       return (
         error.status === 429 || // Rate limit
@@ -488,10 +489,10 @@ export class ArticleSummarizer {
       return error;
     }
 
-    if (error instanceof Anthropic.APIError) {
+    if (error instanceof OpenAI.APIError) {
       if (error.status === 429) {
         return new SummarizerError(
-          "Claude API rate limit exceeded",
+          "OpenAI API rate limit exceeded",
           SummarizerErrorType.RATE_LIMIT_EXCEEDED,
           error,
           true,
@@ -503,7 +504,7 @@ export class ArticleSummarizer {
       }
 
       return new SummarizerError(
-        `Claude API error: ${error.message}`,
+        `OpenAI API error: ${error.message}`,
         SummarizerErrorType.API_ERROR,
         error,
         this.isRetryableError(error),
