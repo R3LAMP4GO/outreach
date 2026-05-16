@@ -59,7 +59,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     name: session?.user?.name || "Admin",
     email:
       session?.user?.email || process.env.NEXT_PUBLIC_DEFAULT_ADMIN_EMAIL || "admin@example.com",
-    avatar: "/android-chrome-192x192.png",
+    avatar: session?.user?.image || "/android-chrome-192x192.png",
   };
 
   return (

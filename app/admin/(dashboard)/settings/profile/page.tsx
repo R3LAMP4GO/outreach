@@ -43,7 +43,7 @@ import {
 import { toast } from "sonner";
 
 export default function ProfileSettingsPage() {
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -129,6 +129,9 @@ export default function ProfileSettingsPage() {
       }
 
       setProfile((prev) => ({ ...prev, avatarUrl: data.url }));
+      // Push the new URL into the NextAuth JWT so the sidebar (and any other
+      // component reading session.user.image) reflects it without a re-login.
+      await updateSession({ avatarUrl: data.url });
       toast.success("Avatar uploaded");
     } catch {
       toast.error("Failed to upload avatar");
@@ -148,6 +151,7 @@ export default function ProfileSettingsPage() {
         return;
       }
       setProfile((prev) => ({ ...prev, avatarUrl: null }));
+      await updateSession({ avatarUrl: null });
       toast.success("Avatar removed");
     } catch {
       toast.error("Failed to remove avatar");

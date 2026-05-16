@@ -106,6 +106,8 @@ describe("POST /api/newsletter/generate", () => {
         name: "Admin User",
         role: "admin",
         totpEnabled: false,
+        avatarUrl: null,
+        image: null,
       },
       expires: "2024-12-31",
     });
@@ -140,6 +142,8 @@ describe("POST /api/newsletter/generate", () => {
         name: "Admin User",
         role: "admin",
         totpEnabled: false,
+        avatarUrl: null,
+        image: null,
       },
       expires: "2024-12-31",
     });
@@ -166,6 +170,8 @@ describe("POST /api/newsletter/generate", () => {
         name: "Admin User",
         role: "admin",
         totpEnabled: false,
+        avatarUrl: null,
+        image: null,
       },
       expires: "2024-12-31",
     });
@@ -196,6 +202,8 @@ describe("POST /api/newsletter/generate", () => {
         name: "Admin User",
         role: "admin",
         totpEnabled: false,
+        avatarUrl: null,
+        image: null,
       },
       expires: "2024-12-31",
     });

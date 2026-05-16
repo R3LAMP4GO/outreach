@@ -10,6 +10,10 @@ declare module "next-auth" {
       name: string | null;
       role: "admin" | "super_admin";
       totpEnabled: boolean;
+      /** Proxied URL like `/api/media/avatars/<filename>`, or null. */
+      avatarUrl: string | null;
+      /** NextAuth-canonical image field — mirror of `avatarUrl`. */
+      image: string | null;
     };
   }
 
@@ -19,6 +23,7 @@ declare module "next-auth" {
     name: string | null;
     role: "admin" | "super_admin";
     totpEnabled: boolean;
+    avatarUrl: string | null;
   }
 }
 
@@ -60,11 +65,26 @@ export const authConfig: NextAuthConfig = {
       return true;
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      // Initial sign-in: copy fields off the authorize() return
       if (user) {
         token.id = user.id;
         token.role = user.role;
         token.totpEnabled = user.totpEnabled;
+        token.picture = user.avatarUrl ?? null;
+      }
+
+      // `useSession().update({ avatarUrl: ... })` from the profile page
+      // routes through here with trigger === "update" so the next session()
+      // call picks up the fresh URL without a full re-login.
+      if (trigger === "update" && session && typeof session === "object") {
+        const next = session as { avatarUrl?: string | null; name?: string | null };
+        if ("avatarUrl" in next) {
+          token.picture = next.avatarUrl ?? null;
+        }
+        if (typeof next.name === "string") {
+          token.name = next.name;
+        }
       }
 
       return token;
@@ -75,6 +95,11 @@ export const authConfig: NextAuthConfig = {
         session.user.id = token.id as string;
         session.user.role = token.role as "admin" | "super_admin";
         session.user.totpEnabled = token.totpEnabled as boolean;
+        // `token.picture` is NextAuth's canonical avatar slot — we mirror it
+        // into both `image` (idiomatic) and `avatarUrl` (legacy callers).
+        const picture = (token.picture as string | null | undefined) ?? null;
+        session.user.image = picture;
+        session.user.avatarUrl = picture;
       }
       return session;
     },

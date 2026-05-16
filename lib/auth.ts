@@ -221,6 +221,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           name: user.name,
           role: user.role as "admin" | "super_admin",
           totpEnabled: user.totpEnabled || false,
+          avatarUrl: user.avatarUrl ?? null,
         };
       },
     }),
