@@ -1,5 +1,12 @@
 import "server-only";
-import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  CreateBucketCommand,
+  HeadBucketCommand,
+  S3ServiceException,
+} from "@aws-sdk/client-s3";
 import { getStorageClient } from "./client";
 
 export const MEDIA_BUCKET = process.env.BUCKET_MEDIA_NAME ?? "media";
@@ -21,12 +28,40 @@ export function isStorageConfigured(): boolean {
   );
 }
 
+/**
+ * Memoised one-shot bucket existence check. We only call HeadBucket on the
+ * very first upload of a process; after that the bucket is assumed to exist.
+ * If it doesn't, the PutObject call below will throw NoSuchBucket and we
+ * fall through to `createMediaBucket` once.
+ */
+let bucketReady: Promise<void> | null = null;
+
+async function ensureMediaBucket(): Promise<void> {
+  if (bucketReady) return bucketReady;
+  bucketReady = (async () => {
+    const client = getStorageClient();
+    try {
+      await client.send(new HeadBucketCommand({ Bucket: MEDIA_BUCKET }));
+    } catch (err) {
+      // 404 NoSuchBucket — create it. Anything else (403, 5xx) rethrows.
+      const status = err instanceof S3ServiceException ? (err.$metadata.httpStatusCode ?? 0) : 0;
+      if (status !== 404 && (err as { name?: string }).name !== "NotFound") {
+        bucketReady = null; // allow retry on transient failures
+        throw err;
+      }
+      await client.send(new CreateBucketCommand({ Bucket: MEDIA_BUCKET }));
+    }
+  })();
+  return bucketReady;
+}
+
 export async function uploadFile(
   path: string,
   body: Buffer,
   opts: { contentType: string },
 ): Promise<void> {
   const client = getStorageClient();
+  await ensureMediaBucket();
   await client.send(
     new PutObjectCommand({
       Bucket: MEDIA_BUCKET,
