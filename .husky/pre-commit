@@ -3,7 +3,13 @@ bunx lint-staged
 # Secret-pattern scan on staged diff. Fails commit if a known secret shape appears.
 # Patterns: Anthropic, Stripe, Resend, webhook secrets, Postgres URLs with creds,
 # AWS access keys, Google API keys, JWT shape.
-if git diff --cached --no-color | grep -nE '(sk-(ant|live|test)-[A-Za-z0-9_-]{20,}|re_[A-Za-z0-9_-]{20,}|whsec_[A-Za-z0-9]{20,}|postgresql://[^[:space:]]+:[^[:space:]@]+@|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})'; then
+#
+# Only scans ADDED lines (^+) — ignores context (unchanged surrounding lines
+# that diff happens to include) and removals (^-). The previous version
+# flagged context lines, which produced false positives whenever a nearby
+# edit pulled a pre-existing test fixture URL into the diff's context window.
+# `grep -v '^+++'` strips the diff's file-header lines (e.g. `+++ b/file`).
+if git diff --cached --no-color | grep '^+' | grep -v '^+++' | grep -nE '(sk-(ant|live|test)-[A-Za-z0-9_-]{20,}|re_[A-Za-z0-9_-]{20,}|whsec_[A-Za-z0-9]{20,}|postgresql://[^[:space:]]+:[^[:space:]@]+@|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{20,}|eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})'; then
   echo "❌ Potential secret detected in staged diff. Remove before committing."
   exit 1
 fi
