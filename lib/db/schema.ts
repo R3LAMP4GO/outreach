@@ -81,7 +81,9 @@ export const adminSettings = pgTable("admin_settings", {
   timezone: text("timezone"),
   skinId: text("skin_id").default("concrete"),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: "string" }),
-  userId: uuid("user_id").notNull(),
+  // Unique so the settings POST can use `onConflictDoUpdate({ target: userId })`
+  // — without this, Postgres throws 42P10 (no arbiter index).
+  userId: uuid("user_id").notNull().unique(),
 });
 
 // ============================================================================

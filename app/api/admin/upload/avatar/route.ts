@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { adminUsers } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { fileTypeFromBuffer } from "file-type";
-import { uploadFile, deleteFile } from "@/lib/storage";
+import { uploadFile, deleteFile, isStorageConfigured } from "@/lib/storage";
 import { randomBytes } from "crypto";
 
 const ALLOWED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -20,6 +20,16 @@ export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isStorageConfigured()) {
+    return NextResponse.json(
+      {
+        error:
+          "File storage is not configured. Set BUCKET_ENDPOINT, BUCKET_MEDIA_ACCESS_KEY_ID, and BUCKET_MEDIA_SECRET_ACCESS_KEY to enable avatar uploads.",
+      },
+      { status: 503 },
+    );
   }
 
   const formData = await request.formData().catch(() => null);
@@ -78,6 +88,10 @@ export async function DELETE() {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  if (!isStorageConfigured()) {
+    return NextResponse.json({ error: "File storage is not configured" }, { status: 503 });
   }
 
   const [user] = await db

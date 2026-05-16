@@ -4,6 +4,23 @@ import { getStorageClient } from "./client";
 
 export const MEDIA_BUCKET = process.env.BUCKET_MEDIA_NAME ?? "media";
 
+/**
+ * Cheap, no-throw check for whether the S3-compatible storage backend is
+ * configured. Call this from route handlers BEFORE invoking `uploadFile` /
+ * `downloadFile` / `deleteFile` so a missing env var degrades to a clean 503
+ * instead of an uncaught `Error: BUCKET_ENDPOINT is not set` that surfaces as
+ * a 500 with a stack trace.
+ *
+ * The full credential set is required — endpoint alone is not enough.
+ */
+export function isStorageConfigured(): boolean {
+  return Boolean(
+    process.env.BUCKET_ENDPOINT &&
+      process.env.BUCKET_MEDIA_ACCESS_KEY_ID &&
+      process.env.BUCKET_MEDIA_SECRET_ACCESS_KEY,
+  );
+}
+
 export async function uploadFile(
   path: string,
   body: Buffer,
